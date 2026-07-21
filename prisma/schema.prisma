@@ -1,0 +1,783 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  WARNING
+  TEMPORARILY_SUSPENDED
+  PERMANENTLY_SUSPENDED
+  WITHDRAWAL_REQUESTED
+  WITHDRAWN
+
+  @@map("user_status")
+}
+
+enum RoleName {
+  USER
+  MODERATOR
+  DONATION_REVIEWER
+  ADMINISTRATOR
+  AUDITOR
+
+  @@map("role_name")
+}
+
+enum ItemStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  RESERVED
+  HANDOVER_IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
+  SUSPENDED
+
+  @@map("item_status")
+}
+
+enum ItemCondition {
+  UNUSED
+  GOOD
+  USED
+  NEEDS_REPAIR
+
+  @@map("item_condition")
+}
+
+enum DeliveryMethod {
+  HANDOVER
+  SHIPPING
+
+  @@map("delivery_method")
+}
+
+enum ItemRequestStatus {
+  REQUESTED
+  SELECTED
+  NOT_SELECTED
+  WITHDRAWN
+  EXPIRED
+  CANCELLED
+
+  @@map("item_request_status")
+}
+
+enum TransactionStatus {
+  REQUESTED
+  RECIPIENT_SELECTED
+  ACCEPTED
+  HANDOVER_SCHEDULED
+  PROVIDER_REPORTED_COMPLETE
+  RECIPIENT_REPORTED_COMPLETE
+  UNDER_ADMIN_REVIEW
+  COMPLETED
+  DISPUTED
+  CANCELLED
+  SUSPENDED
+
+  @@map("transaction_status")
+}
+
+enum ShippingWorkloadLevel {
+  NONE
+  SIMPLE
+  STANDARD
+  LARGE_SPECIAL
+
+  @@map("shipping_workload_level")
+}
+
+enum PointLedgerEventType {
+  BASE_AWARD
+  SHIPPING_BONUS
+  AWARD_HOLD
+  REVERSAL
+  COMMON_POOL_TRANSFER_OUT
+  HOLDING_CAP_OVERFLOW_OUT
+  EXPIRY_OUT
+
+  @@map("point_ledger_event_type")
+}
+
+enum PointLedgerStatus {
+  POSTED
+  HELD
+
+  @@map("point_ledger_status")
+}
+
+enum CommonPoolEventType {
+  TRANSFER_IN
+
+  @@map("common_pool_event_type")
+}
+
+enum CommonPoolReason {
+  UNSPECIFIED
+  EXPIRED
+  HOLDING_LIMIT_EXCEEDED
+  CORRECTION
+
+  @@map("common_pool_reason")
+}
+
+enum PolicyVersionStatus {
+  DEVELOPMENT
+  APPROVED
+  SUSPENDED
+
+  @@map("policy_version_status")
+}
+
+enum InvitationStatus {
+  ISSUED
+  USED
+  EXPIRED
+  REVOKED
+
+  @@map("invitation_status")
+}
+
+enum ConsentRecordType {
+  TERMS
+  PRIVACY
+  AGE_18_PLUS
+  ONE_ACCOUNT
+
+  @@map("consent_record_type")
+}
+
+enum PilotMembershipStatus {
+  PROVISIONAL
+  ACTIVE
+  SUSPENDED
+  WITHDRAWN
+
+  @@map("pilot_membership_status")
+}
+
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+
+  @@map("kyc_status")
+}
+
+enum PointMovementType {
+  HOLDING_CAP_OVERFLOW
+  EXPIRY
+
+  @@map("point_movement_type")
+}
+
+enum PointExpiryNotificationStatus {
+  SCHEDULED
+  SENT
+  FAILED
+  CANCELLED
+
+  @@map("point_expiry_notification_status")
+}
+
+enum AuditResult {
+  SUCCEEDED
+  REJECTED
+  FAILED
+
+  @@map("audit_result")
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  DEAD_LETTER
+
+  @@map("outbox_status")
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false) @map("email_verified")
+  image         String?
+  status        UserStatus @default(ACTIVE)
+  lastLoginAt   DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions       Session[]
+  accounts       Account[]
+  roles          UserRole[]
+  profile        Profile?
+  items          Item[]
+  itemRequests   ItemRequest[] @relation("Requester")
+  selectedBy     ItemRequest[] @relation("SelectedBy")
+  mockEmails     MockEmail[]
+  providedTransactions Transaction[] @relation("TransactionProvider")
+  receivedTransactions Transaction[] @relation("TransactionRecipient")
+  pointLedgerEntries   PointLedgerEntry[]
+  pilotMembership     PilotMembership?
+  invitationsIssued   Invitation[] @relation("InvitationIssuer")
+  invitationsUsed     Invitation[] @relation("InvitationUser")
+  invitationsRevoked  Invitation[] @relation("InvitationRevoker")
+  consentRecords      ConsentRecord[]
+  kycCases            KycCase[] @relation("KycUser")
+  kycCasesReviewed    KycCase[] @relation("KycReviewer")
+  kycSubjectClaim     KycSubjectClaim?
+  policiesApproved    ServicePolicyVersion[] @relation("ServicePolicyApprover")
+  pilotSettingsApproved PilotSetting[] @relation("PilotSettingApprover")
+  pointPoliciesApproved PointPolicyVersion[] @relation("PointPolicyApprover")
+  pointExpiryNotifications PointExpiryNotification[]
+
+  @@index([status, createdAt])
+  @@map("users")
+}
+
+model ServicePolicyVersion {
+  id                String              @id @default(uuid()) @db.Uuid
+  version           String              @unique
+  termsVersion      String              @map("terms_version")
+  privacyVersion    String              @map("privacy_version")
+  status            PolicyVersionStatus @default(DEVELOPMENT)
+  requiresReconsent Boolean             @default(true) @map("requires_reconsent")
+  effectiveFrom     DateTime            @map("effective_from") @db.Timestamptz(6)
+  approvedAt        DateTime?           @map("approved_at") @db.Timestamptz(6)
+  approvedById      String?             @map("approved_by_id") @db.Uuid
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  approvedBy        User?               @relation("ServicePolicyApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  pilotSetting      PilotSetting?
+  consentRecords    ConsentRecord[]
+
+  @@index([status, effectiveFrom])
+  @@map("service_policy_versions")
+}
+
+model PilotSetting {
+  id                      String               @id @default(uuid()) @db.Uuid
+  policyVersionId         String               @unique @map("policy_version_id") @db.Uuid
+  regionLabel             String               @map("region_label")
+  allowedAreaKeys         Json                 @map("allowed_area_keys")
+  registrationLimit       Int                  @map("registration_limit")
+  inviteOnly              Boolean              @default(true) @map("invite_only")
+  nationwidePublicEnabled Boolean              @default(false) @map("nationwide_public_enabled")
+  effectiveFrom           DateTime             @map("effective_from") @db.Timestamptz(6)
+  effectiveTo             DateTime?            @map("effective_to") @db.Timestamptz(6)
+  approvedById            String?              @map("approved_by_id") @db.Uuid
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  policyVersion           ServicePolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  approvedBy              User?                @relation("PilotSettingApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@index([effectiveFrom, effectiveTo])
+  @@map("pilot_settings")
+}
+
+model Invitation {
+  id                    String           @id @default(uuid()) @db.Uuid
+  codeHash              String           @unique @map("code_hash")
+  source                String
+  status                InvitationStatus @default(ISSUED)
+  countsTowardLimit     Boolean          @default(true) @map("counts_toward_limit")
+  issuedByUserId        String           @map("issued_by_user_id") @db.Uuid
+  issuedAt              DateTime         @default(now()) @map("issued_at") @db.Timestamptz(6)
+  expiresAt             DateTime         @map("expires_at") @db.Timestamptz(6)
+  usedAt                DateTime?        @map("used_at") @db.Timestamptz(6)
+  usedByUserId          String?          @unique @map("used_by_user_id") @db.Uuid
+  revokedAt             DateTime?        @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId       String?          @map("revoked_by_user_id") @db.Uuid
+  revokeReason          String?          @map("revoke_reason")
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  issuedBy              User             @relation("InvitationIssuer", fields: [issuedByUserId], references: [id], onDelete: Restrict)
+  usedBy                User?            @relation("InvitationUser", fields: [usedByUserId], references: [id], onDelete: Restrict)
+  revokedBy             User?            @relation("InvitationRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+  pilotMembership       PilotMembership?
+
+  @@index([status, expiresAt])
+  @@index([issuedByUserId, issuedAt])
+  @@map("invitations")
+}
+
+model PilotMembership {
+  id                     String                @id @default(uuid()) @db.Uuid
+  userId                 String                @unique @map("user_id") @db.Uuid
+  invitationId           String                @unique @map("invitation_id") @db.Uuid
+  areaKey                String                @map("area_key")
+  accountType            String                @default("INDIVIDUAL") @map("account_type")
+  status                 PilotMembershipStatus @default(PROVISIONAL)
+  countsTowardLimit      Boolean               @default(true) @map("counts_toward_limit")
+  oneAccountAttestedAt   DateTime              @map("one_account_attested_at") @db.Timestamptz(6)
+  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  invitation             Invitation            @relation(fields: [invitationId], references: [id], onDelete: Restrict)
+
+  @@index([status, countsTowardLimit, createdAt])
+  @@index([areaKey, status])
+  @@map("pilot_memberships")
+}
+
+model ConsentRecord {
+  id                String               @id @default(uuid()) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  policyVersionId   String               @map("policy_version_id") @db.Uuid
+  recordType        ConsentRecordType    @map("record_type")
+  documentVersion   String               @map("document_version")
+  confirmedAt       DateTime             @default(now()) @map("confirmed_at") @db.Timestamptz(6)
+  source            String
+  evidenceHash      String?              @map("evidence_hash")
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  policyVersion     ServicePolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, recordType, documentVersion])
+  @@index([userId, confirmedAt])
+  @@map("consent_records")
+}
+
+model KycCase {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @map("user_id") @db.Uuid
+  provider             String
+  status               KycStatus
+  subjectReferenceHash String?   @map("subject_reference_hash")
+  validFrom            DateTime? @map("valid_from") @db.Timestamptz(6)
+  validUntil           DateTime? @map("valid_until") @db.Timestamptz(6)
+  submittedAt          DateTime? @map("submitted_at") @db.Timestamptz(6)
+  decidedAt            DateTime? @map("decided_at") @db.Timestamptz(6)
+  reasonCode           String?   @map("reason_code")
+  reviewedByUserId     String?   @map("reviewed_by_user_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user                 User      @relation("KycUser", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy           User?     @relation("KycReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  subjectClaim         KycSubjectClaim?
+
+  @@index([userId, createdAt])
+  @@index([status, validUntil])
+  @@map("kyc_cases")
+}
+
+model KycSubjectClaim {
+  id                   String   @id @default(uuid()) @db.Uuid
+  subjectReferenceHash String   @unique @map("subject_reference_hash")
+  userId               String   @unique @map("user_id") @db.Uuid
+  firstKycCaseId       String   @unique @map("first_kyc_case_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  firstKycCase         KycCase  @relation(fields: [firstKycCaseId], references: [id], onDelete: Restrict)
+
+  @@map("kyc_subject_claims")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model UserRole {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  role         RoleName
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  reason       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+  @@map("user_roles")
+}
+
+model Profile {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  displayName  String   @map("display_name")
+  bio          String?
+  handoverArea String?  @map("handover_area")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Category {
+  id             String   @id @default(uuid()) @db.Uuid
+  slug           String   @unique
+  name           String
+  riskLevel      Int      @default(0) @map("risk_level")
+  active         Boolean  @default(true)
+  requiresReview Boolean  @default(true) @map("requires_review")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items          Item[]
+
+  @@index([active, name])
+  @@map("categories")
+}
+
+model Item {
+  id                String         @id @default(uuid()) @db.Uuid
+  ownerUserId       String         @map("owner_user_id") @db.Uuid
+  categoryId        String         @map("category_id") @db.Uuid
+  title             String
+  description       String
+  condition         ItemCondition
+  defectDescription String?        @map("defect_description")
+  deliveryMethod    DeliveryMethod @map("delivery_method")
+  handoverArea      String         @map("handover_area")
+  availableDates    Json           @map("available_dates")
+  shippingSupported Boolean        @default(false) @map("shipping_supported")
+  status            ItemStatus     @default(DRAFT)
+  reviewReason      String?        @map("review_reason")
+  publishedAt       DateTime?      @map("published_at") @db.Timestamptz(6)
+  version           Int            @default(1)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner             User           @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  category          Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images            ItemImage[]
+  requests          ItemRequest[]
+  reviewEvents      ItemReviewEvent[]
+  transaction       Transaction?
+
+  @@index([ownerUserId, status, createdAt])
+  @@index([status, publishedAt])
+  @@index([categoryId, status])
+  @@map("items")
+}
+
+model ItemImage {
+  id           String   @id @default(uuid()) @db.Uuid
+  itemId       String   @map("item_id") @db.Uuid
+  storageKey   String   @map("storage_key")
+  contentType  String   @map("content_type")
+  byteSize     Int      @map("byte_size")
+  displayOrder Int      @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, displayOrder])
+  @@map("item_images")
+}
+
+model ItemReviewEvent {
+  id             String     @id @default(uuid()) @db.Uuid
+  itemId         String     @map("item_id") @db.Uuid
+  reviewerUserId String     @map("reviewer_user_id") @db.Uuid
+  fromStatus     ItemStatus @map("from_status")
+  toStatus       ItemStatus @map("to_status")
+  reason         String
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  item           Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt])
+  @@index([reviewerUserId, createdAt])
+  @@map("item_review_events")
+}
+
+model ItemRequest {
+  id               String            @id @default(uuid()) @db.Uuid
+  itemId           String            @map("item_id") @db.Uuid
+  requesterUserId  String            @map("requester_user_id") @db.Uuid
+  message          String
+  status           ItemRequestStatus @default(REQUESTED)
+  selectedAt       DateTime?         @map("selected_at") @db.Timestamptz(6)
+  selectedByUserId String?           @map("selected_by_user_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  item             Item              @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  requester        User              @relation("Requester", fields: [requesterUserId], references: [id], onDelete: Restrict)
+  selectedBy       User?             @relation("SelectedBy", fields: [selectedByUserId], references: [id], onDelete: Restrict)
+  transaction      Transaction?
+
+  @@unique([itemId, requesterUserId])
+  @@index([requesterUserId, status, createdAt])
+  @@index([itemId, status, createdAt])
+  @@map("item_requests")
+}
+
+model Transaction {
+  id                        String                @id @default(uuid()) @db.Uuid
+  itemId                    String                @unique @map("item_id") @db.Uuid
+  selectedRequestId         String                @unique @map("selected_request_id") @db.Uuid
+  providerUserId            String                @map("provider_user_id") @db.Uuid
+  recipientUserId           String                @map("recipient_user_id") @db.Uuid
+  status                    TransactionStatus     @default(RECIPIENT_SELECTED)
+  version                   Int                   @default(1)
+  providerReportedAt        DateTime?             @map("provider_reported_at") @db.Timestamptz(6)
+  recipientReportedAt       DateTime?             @map("recipient_reported_at") @db.Timestamptz(6)
+  bothReportedAt            DateTime?             @map("both_reported_at") @db.Timestamptz(6)
+  handoverOccurredAt        DateTime?             @map("handover_occurred_at") @db.Timestamptz(6)
+  adminFinalizedAt          DateTime?             @map("admin_finalized_at") @db.Timestamptz(6)
+  adminFinalizedById        String?               @map("admin_finalized_by_id") @db.Uuid
+  shippingWorkloadLevel     ShippingWorkloadLevel @default(NONE) @map("shipping_workload_level")
+  adminVerifiedAt           DateTime?             @map("admin_verified_at") @db.Timestamptz(6)
+  adminVerifiedById         String?               @map("admin_verified_by_id") @db.Uuid
+  completedAt               DateTime?             @map("completed_at") @db.Timestamptz(6)
+  statusReason              String?               @map("status_reason")
+  createdAt                 DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  item                      Item                  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  selectedRequest           ItemRequest           @relation(fields: [selectedRequestId], references: [id], onDelete: Restrict)
+  provider                  User                  @relation("TransactionProvider", fields: [providerUserId], references: [id], onDelete: Restrict)
+  recipient                 User                  @relation("TransactionRecipient", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  statusEvents              TransactionStatusEvent[]
+  pointLedgerEntries        PointLedgerEntry[]
+
+  @@index([providerUserId, status, updatedAt])
+  @@index([recipientUserId, status, updatedAt])
+  @@index([status, updatedAt])
+  @@map("transactions")
+}
+
+model TransactionStatusEvent {
+  id            String            @id @default(uuid()) @db.Uuid
+  transactionId String            @map("transaction_id") @db.Uuid
+  fromStatus    TransactionStatus @map("from_status")
+  toStatus      TransactionStatus @map("to_status")
+  eventType     String            @map("event_type")
+  actorUserId   String?           @map("actor_user_id") @db.Uuid
+  actorRole     String?           @map("actor_role")
+  reason        String
+  metadataSafeJson Json?          @map("metadata_safe_json")
+  idempotencyKey String           @unique @map("idempotency_key")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  transaction   Transaction       @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+
+  @@index([transactionId, createdAt])
+  @@index([toStatus, createdAt])
+  @@map("transaction_status_events")
+}
+
+model PointLedgerEntry {
+  id              String               @id @default(uuid()) @db.Uuid
+  transactionId   String?              @map("transaction_id") @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  eventType       PointLedgerEventType @map("event_type")
+  points          Int
+  reason          String
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       String               @map("created_by")
+  reversalOfId    String?              @unique @map("reversal_of") @db.Uuid
+  status          PointLedgerStatus
+  idempotencyKey  String               @unique @map("idempotency_key")
+  metadataSafeJson Json?               @map("metadata_safe_json")
+  policyVersionId String?              @map("policy_version_id") @db.Uuid
+  awardedAt       DateTime?            @map("awarded_at") @db.Timestamptz(6)
+  expiresAt       DateTime?            @map("expires_at") @db.Timestamptz(6)
+  awardGroupId    String?              @map("award_group_id") @db.Uuid
+  transaction     Transaction?         @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reversalOf      PointLedgerEntry?     @relation("PointLedgerReversals", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversal        PointLedgerEntry?     @relation("PointLedgerReversals")
+  commonPoolEntry CommonPoolLedgerEntry?
+  policyVersion   PointPolicyVersion?  @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  sourceMovements PointMovement[]      @relation("PointMovementSource")
+  movementOut     PointMovement?       @relation("PointMovementUserOut")
+  expiryNotifications PointExpiryNotification[]
+
+  @@index([userId, createdAt, id])
+  @@index([transactionId, eventType, status])
+  @@index([status, createdAt])
+  @@index([userId, policyVersionId, status, createdAt])
+  @@index([expiresAt, status])
+  @@index([awardGroupId])
+  @@map("point_ledger_entries")
+}
+
+model CommonPoolLedgerEntry {
+  id                       String              @id @default(uuid()) @db.Uuid
+  sourcePointLedgerEntryId String              @unique @map("source_point_ledger_entry_id") @db.Uuid
+  eventType                CommonPoolEventType @map("event_type")
+  reasonCategory           CommonPoolReason    @map("reason_category")
+  points                   Int
+  reason                   String
+  createdAt                DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy                String              @map("created_by")
+  idempotencyKey           String              @unique @map("idempotency_key")
+  sourcePointLedgerEntry   PointLedgerEntry    @relation(fields: [sourcePointLedgerEntryId], references: [id], onDelete: Restrict)
+  movement                 PointMovement?      @relation("PointMovementPoolIn")
+
+  @@index([createdAt, id])
+  @@index([reasonCategory, createdAt])
+  @@map("common_pool_ledger_entries")
+}
+
+model PointPolicyVersion {
+  id                  String              @id @default(uuid()) @db.Uuid
+  version             String              @unique
+  status              PolicyVersionStatus @default(DEVELOPMENT)
+  effectiveFrom       DateTime            @map("effective_from") @db.Timestamptz(6)
+  productionStartedAt DateTime?           @map("production_started_at") @db.Timestamptz(6)
+  baseAwardPoints     Int                 @default(1) @map("base_award_points")
+  shippingBonusMax    Int                 @default(3) @map("shipping_bonus_max")
+  transactionTotalMax Int                 @default(4) @map("transaction_total_max")
+  availableBalanceCap Int                 @default(30) @map("available_balance_cap")
+  availableBalanceStatusMode String       @default("UNDECIDED") @map("available_balance_status_mode")
+  expiryMonths        Int                 @default(12) @map("expiry_months")
+  timezone            String              @default("Asia/Tokyo")
+  approvedAt          DateTime?           @map("approved_at") @db.Timestamptz(6)
+  approvedById        String?             @map("approved_by_id") @db.Uuid
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  approvedBy          User?               @relation("PointPolicyApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  ledgerEntries       PointLedgerEntry[]
+  movements           PointMovement[]
+
+  @@index([status, effectiveFrom])
+  @@map("point_policy_versions")
+}
+
+model PointMovement {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  movementType       PointMovementType      @map("movement_type")
+  sourcePointEntryId String                 @map("source_point_entry_id") @db.Uuid
+  userOutEntryId     String                 @unique @map("user_out_entry_id") @db.Uuid
+  poolInEntryId      String                 @unique @map("pool_in_entry_id") @db.Uuid
+  policyVersionId    String                 @map("policy_version_id") @db.Uuid
+  points             Int
+  idempotencyKey     String                 @unique @map("idempotency_key")
+  createdBy          String                 @map("created_by")
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  sourcePointEntry   PointLedgerEntry       @relation("PointMovementSource", fields: [sourcePointEntryId], references: [id], onDelete: Restrict)
+  userOutEntry       PointLedgerEntry       @relation("PointMovementUserOut", fields: [userOutEntryId], references: [id], onDelete: Restrict)
+  poolInEntry        CommonPoolLedgerEntry  @relation("PointMovementPoolIn", fields: [poolInEntryId], references: [id], onDelete: Restrict)
+  policyVersion      PointPolicyVersion     @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+
+  @@index([sourcePointEntryId, createdAt])
+  @@index([movementType, createdAt])
+  @@map("point_movements")
+}
+
+model PointExpiryNotification {
+  id             String                        @id @default(uuid()) @db.Uuid
+  userId         String                        @map("user_id") @db.Uuid
+  pointEntryId   String                        @map("point_entry_id") @db.Uuid
+  noticeDays     Int                           @map("notice_days")
+  scheduledFor   DateTime                      @map("scheduled_for") @db.Timestamptz(6)
+  status         PointExpiryNotificationStatus @default(SCHEDULED)
+  outboxEventId  String?                       @unique @map("outbox_event_id") @db.Uuid
+  sentAt         DateTime?                     @map("sent_at") @db.Timestamptz(6)
+  failureCode    String?                       @map("failure_code")
+  idempotencyKey String                        @unique @map("idempotency_key")
+  createdAt      DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User                          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  pointEntry     PointLedgerEntry              @relation(fields: [pointEntryId], references: [id], onDelete: Restrict)
+  outboxEvent    OutboxEvent?                  @relation(fields: [outboxEventId], references: [id], onDelete: Restrict)
+
+  @@unique([pointEntryId, noticeDays])
+  @@index([status, scheduledFor])
+  @@index([userId, scheduledFor])
+  @@map("point_expiry_notifications")
+}
+
+model MockEmail {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  recipientEmail String   @map("recipient_email")
+  subject        String
+  actionUrl      String   @map("action_url")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([recipientEmail, createdAt])
+  @@map("mock_emails")
+}
+
+model AuditEvent {
+  id             String      @id @default(uuid()) @db.Uuid
+  occurredAt     DateTime    @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorType      String      @map("actor_type")
+  actorId        String?     @map("actor_id") @db.Uuid
+  actorRole      String?     @map("actor_role")
+  action         String
+  targetType     String      @map("target_type")
+  targetId       String      @map("target_id")
+  reason         String
+  beforeSafeJson Json?       @map("before_safe_json")
+  afterSafeJson  Json?       @map("after_safe_json")
+  requestId      String      @map("request_id")
+  result         AuditResult
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([targetType, targetId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([requestId])
+  @@map("audit_events")
+}
+
+model OutboxEvent {
+  id              String       @id @default(uuid()) @db.Uuid
+  topic           String
+  aggregateType   String       @map("aggregate_type")
+  aggregateId     String       @map("aggregate_id")
+  payloadSafeJson Json         @map("payload_safe_json")
+  status          OutboxStatus @default(PENDING)
+  attempts        Int          @default(0)
+  availableAt     DateTime     @default(now()) @map("available_at") @db.Timestamptz(6)
+  claimedAt       DateTime?    @map("claimed_at") @db.Timestamptz(6)
+  sentAt          DateTime?    @map("sent_at") @db.Timestamptz(6)
+  idempotencyKey  String       @unique @map("idempotency_key")
+  lastErrorCode   String?      @map("last_error_code")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pointExpiryNotification PointExpiryNotification?
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

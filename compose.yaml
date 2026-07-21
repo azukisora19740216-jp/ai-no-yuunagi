@@ -1,0 +1,70 @@
+name: ai-no-yuunagi
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    command: pnpm dev --hostname 0.0.0.0
+    env_file:
+      - path: .env.local
+        required: true
+    environment:
+      DATABASE_URL: postgresql://ainoyuunagi:local_only_password@db:5432/ainoyuunagi?schema=public
+      SMTP_HOST: mailpit
+      LOCAL_STORAGE_PATH: /app/.local-data/uploads
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+      - local_uploads:/app/.local-data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ainoyuunagi
+      POSTGRES_USER: ainoyuunagi
+      POSTGRES_PASSWORD: local_only_password
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ainoyuunagi -d ainoyuunagi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.30.0
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_MAX_MESSAGE_SIZE: 10485760
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+volumes:
+  postgres_data:
+  node_modules:
+  next_cache:
+  local_uploads:

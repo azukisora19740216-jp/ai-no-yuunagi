@@ -1,0 +1,17 @@
+packages:
+  - .
+
+allowBuilds:
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+
+engineStrict: true
+nodeVersion: 24.18.0
+nodeLinker: hoisted
+
+overrides:
+  "@hono/node-server@1": 1.19.14
+  postcss: 8.5.20
