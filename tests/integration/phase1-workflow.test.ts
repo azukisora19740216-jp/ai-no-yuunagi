@@ -68,6 +68,8 @@ describe.skipIf(!connectionString)("phase 1 workflow", () => {
       where: { recipientEmail: email },
       orderBy: { createdAt: "desc" },
     });
+    console.log("DEBUG mockEmail:", email, JSON.stringify(mockEmail));
+    expect(mockEmail).not.toBeNull();
     expect(mockEmail).not.toBeNull();
     expect(mockEmail?.userId).toBeNull();
     expect(mockEmail?.actionUrl).toContain("token=");
