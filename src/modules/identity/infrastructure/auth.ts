@@ -68,8 +68,8 @@ export const auth = betterAuth({
   },
   rateLimit: {
     enabled: true,
-    window: 60,
-    max: 20,
+    window: env.AUTH_RATE_LIMIT_WINDOW,
+    max: env.AUTH_RATE_LIMIT_MAX,
   },
   advanced: {
     useSecureCookies: env.NODE_ENV === "production",
