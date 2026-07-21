@@ -52,7 +52,7 @@ describe.skipIf(!connectionString)("phase 1 workflow", () => {
       body: { name: "登録テスト", email, password: "Integration-password-123!" },
     });
 
-   const user = await prisma!.user.findUniqueOrThrow({
+    const user = await prisma!.user.findUniqueOrThrow({
       where: { email },
       include: { roles: true, profile: true, accounts: true },
     });
@@ -69,7 +69,7 @@ describe.skipIf(!connectionString)("phase 1 workflow", () => {
       orderBy: { createdAt: "desc" },
     });
     console.log("DEBUG mockEmail:", email, JSON.stringify(mockEmail));
-    expect(mockEmail).not.toBeNull();   
+    expect(mockEmail).not.toBeNull();
     expect(mockEmail?.userId).toBeNull();
     expect(mockEmail?.actionUrl).toContain("token=");
   });
