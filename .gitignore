@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# generated code
+src/generated/
+
+# tests and reports
+coverage/
+playwright-report/
+test-results/
+
+# local environment and secrets
+.env
+.env.local
+.env.*
+.env.*.local
+!.env.example
+
+# local storage and database files
+.local-data/
+work/
+outputs/
+
+# editors / OS
+.DS_Store
+Thumbs.db
+*.swp
+.agents/
+.codex/
+*.tsbuildinfo
+
+# local credentials and signing material
+*.pem
+*.key
+*.p12
+*.pfx
+
+# logs
+*.log
+pnpm-debug.log*
