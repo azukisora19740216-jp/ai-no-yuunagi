@@ -29,14 +29,21 @@ export const auth = betterAuth({
       if (!env.ALLOW_MOCK_ADAPTERS || env.EMAIL_DRIVER !== "mock") {
         throw new Error("外部メール配信アダプターは未設定です。");
       }
-      await getPrisma().mockEmail.create({
-        data: {
-          userId: user.id,
-          recipientEmail: user.email,
-          subject: "メールアドレス確認",
-          actionUrl: url,
-        },
-      });
+      try {
+        await getPrisma().mockEmail.create({
+          data: {
+            recipientEmail: user.email,
+            subject: "メールアドレス確認",
+            actionUrl: url,
+          },
+        });
+      } catch (e) {
+        // better-auth の runInBackgroundOrAwait は、このコールバック内の例外を
+        // ログに出すだけで再スローしない。原因調査のため、ここで一度必ず
+        // 実エラーを可視化してから再スローする（正常系の挙動は変更しない）。
+        console.error("[mockEmail.create failed]", e);
+        throw e;
+      }
     },
     afterEmailVerification: async (user) => {
       await getPrisma().auditEvent.create({
