@@ -48,6 +48,8 @@ const serverEnvSchema = z
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().min(1).max(65_535),
     MAIL_FROM: z.email(),
+    AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).default(60),
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(20),
   })
   .superRefine((env, context) => {
     if (env.STORAGE_DRIVER === "s3") {
