@@ -8,6 +8,12 @@
     "node": ">=24 <25",
     "pnpm": ">=11 <12"
   },
+  "pnpm": {
+    "overrides": {
+      "@hono/node-server@1": "1.19.14",
+      "postcss": "8.5.20"
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
