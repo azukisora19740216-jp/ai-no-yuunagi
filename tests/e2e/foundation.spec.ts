@@ -42,7 +42,7 @@ test.describe("実DBを使う主要フロー", () => {
     await expect(page.getByText("管理確認用の配送テスト物品")).toBeVisible();
     await expect(page.getByRole("button", { name: "確認してポイントを確定" })).toBeVisible();
     await page.goto("/admin/points");
-    await expect(page.getByRole("heading", { name: "ポイント台帳" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ポイント台帳", exact: true })).toBeVisible();
     await expect(page.getByText(/残高の直接上書きはできません/)).toBeVisible();
   });
 });
