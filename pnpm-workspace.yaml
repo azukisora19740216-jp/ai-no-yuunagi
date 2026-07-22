@@ -9,7 +9,7 @@ allowBuilds:
   unrs-resolver: true
 
 engineStrict: true
-nodeVersion: 24.18.0
+nodeVersion: 26.5.0
 nodeLinker: hoisted
 
 overrides:
