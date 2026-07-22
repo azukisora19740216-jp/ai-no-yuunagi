@@ -6,8 +6,10 @@ RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@1
 WORKDIR /app
 
 FROM base AS dependencies
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
+COPY package.json ./
+RUN pnpm install --frozen-lockfile --offline
 
 FROM dependencies AS development
 COPY . .
