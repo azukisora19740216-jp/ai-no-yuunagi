@@ -131,7 +131,8 @@ CIではPostgreSQLサービスへmigrationを適用し、単体・統合・主�
 - 物品価格、送料額、円換算率を保存するフィールドはありません。
 - `DEPLOYMENT_ROLE=local|test|preview|production` を明示し、`NODE_ENV` だけでは配置先を判定しません。
 - Previewではメール・Storageを明示的に`disabled`へできますが、呼出時は副作用前にfail closedで拒否します。mockメール、local storage、mock KYC／配送はPreviewとproductionで拒否します。
-- productionでは外部メールadapterとS3互換Storage adapterだけを許可し、確定したHTTPSの`APP_URL`ホストが`APP_ALLOWED_HOSTS`へ完全一致しない設定を拒否します。ワイルドカードは使用できません。
+- productionでは外部メールadapterとS3互換Storage adapterだけを許可し、確定したHTTPSの`APP_URL`ホストが`APP_ALLOWED_HOSTS`へ完全一致しない設定を拒否します。productionでワイルドカードは使用できません。
+- Prisma Compute PreviewはBetter Authの動的Base URLを使用し、HTTPS固定・fallbackなしで`*.prisma.build`だけを許可します。任意のHostヘッダー、他ドメイン、より広いワイルドカードは拒否します。
 - 禁止品基準の正式資料が未配置のため、現状のカテゴリーは暫定許可リストです。
 - 安全なファイル検証が未実装のため、物品画像アップロードは無効です。
 

@@ -15,6 +15,10 @@ const optionalEmail = z.preprocess(
   z.email().optional(),
 );
 
+const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.url().optional());
+
+const PRISMA_PREVIEW_HOST_PATTERN = "*.prisma.build";
+
 function isNonPublicHostname(hostname: string) {
   const normalized = hostname.toLowerCase();
   return (
@@ -28,11 +32,27 @@ function isNonPublicHostname(hostname: string) {
   );
 }
 
+function isAllowedPrismaPreviewHost(host: string) {
+  return (
+    host === PRISMA_PREVIEW_HOST_PATTERN ||
+    (host.endsWith(".prisma.build") && host !== "prisma.build" && !host.includes("*"))
+  );
+}
+
+function matchesAllowedHost(hostname: string, allowedHost: string) {
+  return (
+    hostname === allowedHost ||
+    (allowedHost === PRISMA_PREVIEW_HOST_PATTERN &&
+      hostname.endsWith(".prisma.build") &&
+      hostname !== "prisma.build")
+  );
+}
+
 const serverEnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DEPLOYMENT_ROLE: z.enum(["local", "test", "preview", "production"]).default("local"),
-    APP_URL: z.url(),
+    APP_URL: optionalUrl,
     APP_ALLOWED_HOSTS: z
       .string()
       .default("")
@@ -90,17 +110,26 @@ const serverEnvSchema = z
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(20),
   })
   .superRefine((env, context) => {
-    const appUrl = new URL(env.APP_URL);
+    const appUrl = env.APP_URL ? new URL(env.APP_URL) : undefined;
     const isDeployedRole =
       env.DEPLOYMENT_ROLE === "preview" || env.DEPLOYMENT_ROLE === "production";
     const isMockRole = env.DEPLOYMENT_ROLE === "local" || env.DEPLOYMENT_ROLE === "test";
 
+    if (!appUrl && env.DEPLOYMENT_ROLE !== "preview") {
+      context.addIssue({
+        code: "custom",
+        path: ["APP_URL"],
+        message: "APP_URL is required outside dynamic preview deployments.",
+      });
+    }
+
     if (
-      appUrl.pathname !== "/" ||
-      appUrl.search !== "" ||
-      appUrl.hash !== "" ||
-      appUrl.username !== "" ||
-      appUrl.password !== ""
+      appUrl &&
+      (appUrl.pathname !== "/" ||
+        appUrl.search !== "" ||
+        appUrl.hash !== "" ||
+        appUrl.username !== "" ||
+        appUrl.password !== "")
     ) {
       context.addIssue({
         code: "custom",
@@ -109,11 +138,11 @@ const serverEnvSchema = z
       });
     }
 
-    if (env.APP_ALLOWED_HOSTS.some((host) => host.includes("*") || host.includes("://"))) {
+    if (env.APP_ALLOWED_HOSTS.some((host) => host.includes("://"))) {
       context.addIssue({
         code: "custom",
         path: ["APP_ALLOWED_HOSTS"],
-        message: "Allowed hosts must be exact hostnames without schemes or wildcards.",
+        message: "Allowed hosts must not include a scheme.",
       });
     }
 
@@ -125,25 +154,40 @@ const serverEnvSchema = z
           message: "Preview and production roles require the production runtime mode.",
         });
       }
-      if (appUrl.protocol !== "https:") {
+      if (appUrl && appUrl.protocol !== "https:") {
         context.addIssue({
           code: "custom",
           path: ["APP_URL"],
           message: "Deployed APP_URL must use HTTPS.",
         });
       }
-      if (isNonPublicHostname(appUrl.hostname)) {
+      if (appUrl && isNonPublicHostname(appUrl.hostname)) {
         context.addIssue({
           code: "custom",
           path: ["APP_URL"],
           message: "Deployed APP_URL must be a confirmed public hostname.",
         });
       }
-      if (!env.APP_ALLOWED_HOSTS.includes(appUrl.hostname.toLowerCase())) {
+      if (
+        appUrl &&
+        !env.APP_ALLOWED_HOSTS.some((host) =>
+          matchesAllowedHost(appUrl.hostname.toLowerCase(), host),
+        )
+      ) {
         context.addIssue({
           code: "custom",
           path: ["APP_ALLOWED_HOSTS"],
           message: "APP_URL hostname must be explicitly allowlisted.",
+        });
+      }
+      if (
+        env.DEPLOYMENT_ROLE === "preview" &&
+        env.APP_ALLOWED_HOSTS.some((host) => !isAllowedPrismaPreviewHost(host))
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["APP_ALLOWED_HOSTS"],
+          message: "Preview allows only bounded Prisma Compute hostnames.",
         });
       }
       if (env.ALLOW_MOCK_ADAPTERS) {
@@ -233,6 +277,13 @@ const serverEnvSchema = z
     }
 
     if (env.DEPLOYMENT_ROLE === "production") {
+      if (env.APP_ALLOWED_HOSTS.some((host) => host.includes("*"))) {
+        context.addIssue({
+          code: "custom",
+          path: ["APP_ALLOWED_HOSTS"],
+          message: "Production allowed hosts must be exact hostnames.",
+        });
+      }
       if (env.EMAIL_DRIVER !== "external") {
         context.addIssue({
           code: "custom",
@@ -271,6 +322,9 @@ export function parseServerEnv(input: NodeJS.ProcessEnv): ServerEnv {
   if (!result.success) {
     const fields = result.error.issues.map((issue) => issue.path.join(".")).filter(Boolean);
     throw new Error(`環境変数の設定が不正です: ${[...new Set(fields)].join(", ")}`);
+  }
+  if (result.data.DEPLOYMENT_ROLE === "preview" && result.data.APP_ALLOWED_HOSTS.length === 0) {
+    return { ...result.data, APP_ALLOWED_HOSTS: [PRISMA_PREVIEW_HOST_PATTERN] };
   }
   return result.data;
 }

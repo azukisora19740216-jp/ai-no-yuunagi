@@ -27,8 +27,8 @@ const validPreviewEnv: NodeJS.ProcessEnv = {
   ...validLocalEnv,
   NODE_ENV: "production",
   DEPLOYMENT_ROLE: "preview",
-  APP_URL: "https://pr-14.preview.prisma.build",
-  APP_ALLOWED_HOSTS: "pr-14.preview.prisma.build",
+  APP_URL: undefined,
+  APP_ALLOWED_HOSTS: undefined,
   AUTH_SECRET: "preview-authentication-secret-at-least-32-characters",
   ALLOW_MOCK_ADAPTERS: "false",
   EMAIL_DRIVER: "disabled",
@@ -67,7 +67,10 @@ describe("parseServerEnv", () => {
   });
 
   it("preview + email disabledで起動設定を受け入れる", () => {
-    expect(parseServerEnv(validPreviewEnv).EMAIL_DRIVER).toBe("disabled");
+    const parsed = parseServerEnv(validPreviewEnv);
+    expect(parsed.EMAIL_DRIVER).toBe("disabled");
+    expect(parsed.APP_URL).toBeUndefined();
+    expect(parsed.APP_ALLOWED_HOSTS).toEqual(["*.prisma.build"]);
   });
 
   it("preview + storage disabledで起動設定を受け入れる", () => {
@@ -151,17 +154,36 @@ describe("parseServerEnv", () => {
       parseServerEnv({
         ...validPreviewEnv,
         APP_URL: "https://other.preview.prisma.build",
+        APP_ALLOWED_HOSTS: "expected.preview.prisma.build",
       }),
     ).toThrow(/APP_ALLOWED_HOSTS/);
   });
 
-  it("wildcardのAPP_ALLOWED_HOSTSを拒否する", () => {
-    expect(() =>
+  it("Prisma Computeに限定したpreview wildcardを受け入れる", () => {
+    expect(
       parseServerEnv({
         ...validPreviewEnv,
         APP_ALLOWED_HOSTS: "*.prisma.build",
+      }).APP_ALLOWED_HOSTS,
+    ).toEqual(["*.prisma.build"]);
+  });
+
+  it("Prisma Compute以外または無制限のpreview wildcardを拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validPreviewEnv,
+        APP_ALLOWED_HOSTS: "*.example.com",
       }),
     ).toThrow(/APP_ALLOWED_HOSTS/);
+  });
+
+  it("productionでAPP_URLが未設定なら拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validProductionEnv,
+        APP_URL: undefined,
+      }),
+    ).toThrow(/APP_URL/);
   });
 
   it("productionの未確定APP_URLを拒否する", () => {

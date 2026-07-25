@@ -5,16 +5,22 @@ import { getServerEnv } from "@/shared/config/env";
 import { sendVerificationEmail } from "./verification-email-sender";
 
 const env = getServerEnv();
+const isDynamicPreview = env.DEPLOYMENT_ROLE === "preview";
 
 export const auth = betterAuth({
   appName: "藍の夕凪",
-  baseURL: env.APP_URL,
+  baseURL: isDynamicPreview
+    ? {
+        allowedHosts: env.APP_ALLOWED_HOSTS,
+        protocol: "https",
+      }
+    : env.APP_URL,
   secret: env.AUTH_SECRET,
   database: prismaAdapter(getPrisma(), {
     provider: "postgresql",
     transaction: true,
   }),
-  trustedOrigins: [env.APP_URL],
+  ...(isDynamicPreview ? {} : { trustedOrigins: [env.APP_URL!] }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

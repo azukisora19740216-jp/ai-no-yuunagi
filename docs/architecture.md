@@ -189,7 +189,7 @@ interface ShippingProvider {
 | preview           | 合成データ             | 無効化またはsandboxのみ。mock/local adapterは拒否     |
 | production        | 本番データ             | 承認済み外部メール・S3互換Storage・secret managerのみ |
 
-配置区分は`NODE_ENV`から推測せず、`DEPLOYMENT_ROLE=local|test|preview|production`で明示する。PreviewとproductionはHTTPSの確定済み`APP_URL`を完全一致の`APP_ALLOWED_HOSTS`へ登録し、ワイルドカードや予約済みテストドメインを拒否する。PreviewでメールまたはStorageを`disabled`にした場合は起動を許可するが、各操作は永続化より前にfail closedとする。productionでは`disabled`を許可しない。
+配置区分は`NODE_ENV`から推測せず、`DEPLOYMENT_ROLE=local|test|preview|production`で明示する。productionはHTTPSの確定済み`APP_URL`を完全一致の`APP_ALLOWED_HOSTS`へ登録し、ワイルドカードや予約済みテストドメインを拒否する。Prisma Compute Previewは初回成功デプロイ前に実URLが確定しないため、Better Authの動的Base URLを使い、HTTPS固定・fallbackなし・`*.prisma.build`だけの境界付きallowlistで受信hostを検証する。これ以外のワイルドカードやドメインは拒否する。PreviewでメールまたはStorageを`disabled`にした場合は起動を許可するが、各操作は永続化より前にfail closedとする。productionでは`disabled`を許可しない。
 
 本番データをlocal/previewへコピーしない。環境名だけで安全機能を無効化せず、モックアダプターはpreview/production起動時にfail closedとする。
 
