@@ -82,6 +82,8 @@
 - 例外を構造化し、本番レスポンスへstack/SQL/環境変数を出さない。
 - 配置区分は`DEPLOYMENT_ROLE`で明示する。productionは確定済みHTTPS originの完全一致allowlistを必須とする。Prisma Compute PreviewはBetter Authの動的Base URL検証を使い、HTTPS固定・fallbackなし・`*.prisma.build`だけの境界付きallowlistとする。未検証の受信Hostヘッダー、他ドメイン、より広いワイルドカード、予約済みテストドメインを信頼しない。
 - 無効化されたメール送信・Storageアップロードは、送信済み表示、DBメタデータ作成、ファイル保存より前に設定不足エラーで拒否する。
+- 本番準備の承認まではbranch scopeのPreviewだけを外部配置検証に使う。Preview secret、Preview DBまたは`disabled` adapter設定をmainへ転用しない。
+- main Computeでproduction設定不足を検知した場合は、配置をfail closedとして未有効化・未配信に保つ。チェック成功だけを目的に暫定secret、テストドメインまたは未承認adapterを設定しない。
 
 ### 監査ログ
 
