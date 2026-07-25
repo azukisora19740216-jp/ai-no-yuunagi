@@ -6,6 +6,35 @@
 
 機能は段階導入用feature flagの既定値を無効にしています。本番開始日時、倉敷市周辺の具体範囲、登録枠算入規則、KYC事業者等は未決のため、本番設定を推測して有効化しないでください。現金決済、ポイントによる物品取得、寄付配分、配送会社API、本番KYCは含みません。
 
+## PD-01〜PD-07の技術検証状況
+
+PD-01〜PD-07は、対象SHA `1a8e19edcb9aa3cf3c6b670a8484db6f8e01fd7f` について「実装済み・PostgreSQL統合検証済み」です。[CI #55 / attempt 2](https://github.com/azukisora19740216-jp/ai-no-yuunagi/actions/runs/30035051625) で次を確認しました。
+
+- `pnpm install --frozen-lockfile`: 成功
+- 単体テスト: 40件成功、skip 0
+- PostgreSQL 18.4統合テスト: 27件成功、skip 0
+- 全migration、seed、production build: 成功
+- Desktop/Mobile E2E: 12件完走、skip 0
+- container build: 成功
+- lockfile再生成および供給網ポリシーの緩和: なし
+
+Mobile E2Eのログイン遷移と管理画面遷移は、各1回のretry後に成功しました。既知のflaky testとして記録し、クローズドテスト開始前に安定化します。
+
+この結果は対象SHAにおける実装、migration、PostgreSQL統合、E2E、production buildおよびcontainer buildの技術的成功を示します。外部機関・専門家の見解、運用上の承認、第三者的な安全性評価、商用環境への移行判断は別途必要です。
+
+未完了事項:
+
+1. 水島警察署生活安全課および岡山県公安委員会による一次見解
+2. 弁護士による法務レビュー
+3. 税理士による運営協賛金・公益配分原資の整理
+4. 本番KYC事業者の選定
+5. 本番メール配信事業者の選定
+6. 本番開始日時と初期ポイントポリシーの承認
+7. 対象地域および登録上限算入区分の確定
+8. 失効通知workerと再送運用
+9. 本番環境のセキュリティ確認
+10. バックアップ、障害対応、利用者対応手順
+
 ## ローカル起動（Docker Compose）
 
 前提: Docker Desktop / Compose v2。
@@ -85,7 +114,7 @@ pnpm db:deploy
 pnpm test:integration
 ```
 
-CIではPostgreSQLサービスへmigrationを適用し、単体・統合・主要E2Eを実行します。
+CIではPostgreSQLサービスへmigrationを適用し、単体・統合・主要E2Eを実行します。2026-07-25時点の検証済み証跡は上記「PD-01〜PD-07の技術検証状況」を参照してください。
 
 ## 重要な制約
 
