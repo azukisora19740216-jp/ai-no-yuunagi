@@ -48,6 +48,15 @@ describe.skipIf(!connectionString)("phase 1 workflow", () => {
   it("registers a member and creates mock verification mail", async () => {
     const { auth } = await import("@/modules/identity/infrastructure/auth");
     const email = `signup-${crypto.randomUUID()}@example.invalid`;
+    await prisma!.mockEmail.create({
+      data: {
+        recipientEmail: email,
+        subject: "過去の確認メール",
+        actionUrl: "http://example.invalid/older-verification",
+        createdAt: new Date("2000-01-01T00:00:00.000Z"),
+      },
+    });
+
     await auth.api.signUpEmail({
       body: { name: "登録テスト", email, password: "Integration-password-123!" },
     });
@@ -56,21 +65,17 @@ describe.skipIf(!connectionString)("phase 1 workflow", () => {
       where: { email },
       include: { roles: true, profile: true, accounts: true },
     });
+    const latestMockEmail = await prisma!.mockEmail.findFirstOrThrow({
+      where: { recipientEmail: email },
+      orderBy: { createdAt: "desc" },
+    });
+
     expect(user.emailVerified).toBe(false);
     expect(user.roles.map(({ role }) => role)).toContain("USER");
     expect(user.profile?.displayName).toBe("登録テスト");
     expect(user.accounts[0]?.password).toBeTruthy();
-
-    // mockEmail は userId を持たない（FK違反を避けるための仕様）ため、
-    // User.mockEmails リレーション経由では取得できない。
-    // recipientEmail で直接検索する。
-    const mockEmail = await prisma!.mockEmail.findFirst({
-      where: { recipientEmail: email },
-      orderBy: { createdAt: "desc" },
-    });
-    expect(mockEmail).not.toBeNull();
-    expect(mockEmail?.userId).toBeNull();
-    expect(mockEmail?.actionUrl).toContain("token=");
+    expect(latestMockEmail.userId).toBeNull();
+    expect(latestMockEmail.actionUrl).toContain("token=");
   });
 
   it("moves draft through approval, request, and provider selection atomically", async () => {
