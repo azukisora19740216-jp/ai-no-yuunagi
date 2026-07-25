@@ -197,7 +197,9 @@ interface ShippingProvider {
 
 ### 10.1 配置チャネル
 
-本番準備が承認されるまで、PR branchのPrisma Compute Previewを外部配置検証チャネルとする。Previewはbranch scopeのsecret、合成データ、`DEPLOYMENT_ROLE=preview`を使用する。Preview用secret、DB、`disabled` adapter設定をmainへコピーしない。
+本番準備が承認されるまで、配置挙動へ影響する変更では、PR branchのPrisma Compute Previewを外部配置検証チャネルとする。対象はアプリケーション、認証・環境変数、DB・migration、build・containerおよび外部adapter等とする。Previewはbranch scopeのsecret、合成データ、`DEPLOYMENT_ROLE=preview`を使用する。Preview用secret、DB、`disabled` adapter設定をmainへコピーしない。
+
+文書だけの変更は、GitHub Actions、文書限定の差分検査および秘密値検査が成功した場合、Preview配置成功をマージ必須条件としない。Preview用環境変数はPR branch間で自動継承されないため、すべてのPRで自動的にPreviewが成立するとは扱わない。共有Preview scopeまたはbranch別設定手順は、配布範囲、fork、rotation、権限およびbranch削除後の保持を確認してから別途決定する。
 
 main Computeは将来のproduction配置候補として未構成・未稼働のまま分離する。未承認のproduction設定が欠ける場合はビルドまたは起動をfail closedとし、暫定値で成功させない。main向け自動デプロイを一時停止または対象外とする外部設定変更は、required checkと代替検証への影響を確認し、明示承認後に行う。
 

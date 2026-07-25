@@ -26,7 +26,9 @@ Mobile E2Eのログイン遷移と管理画面遷移は、各1回のretry後に�
 
 PR #14はhead SHA `e0edd87d0703f6b80dac41b6ea67a6e9a47ef9f0` でPreview配置まで成功し、merge commit `34b8ba05acca1a2330d24231df354c62c6c3234a` のmain CI #62も全job成功しました。PR #14は技術実装として完了しています。
 
-本番準備が承認されるまで、Prisma ComputeのPR Previewを外部配置検証経路とします。main Computeは本番配置経路として未構成・未稼働です。mainでの失敗は、未承認のproduction設定を推測せず、`AUTH_SECRET`不足を検知してfail closedになった既知状態です。コード不良の解消を目的としてPreview用secretや暫定adapter設定をmainへコピーしません。
+本番準備が承認されるまで、配置挙動へ影響する変更ではPrisma ComputeのPR Previewを外部配置検証経路とします。文書だけの変更は、GitHub Actions、文書限定の差分検査、秘密値検査が成功した場合、Preview成功を必須条件としません。Preview用環境変数はPR branch間で自動継承されないため、必要なbranch scope設定を投入したPRだけがPreview配置検証を完了できます。
+
+main Computeは本番配置経路として未構成・未稼働です。mainでの失敗は、未承認のproduction設定を推測せず、`AUTH_SECRET`不足を検知してfail closedになった既知状態です。コード不良の解消を目的としてPreview用secretや暫定adapter設定をmainへコピーしません。
 
 GitHubのmainにはbranch protection/rulesetによるrequired checkが設定されていないため、解除対象のrequired checkはありません。Prisma UIにはPreviewを維持したままmainだけを安全にpauseする操作が確認できなかったため、外部設定は変更せず、main Computeを未構成・未有効化・未配信のまま維持しています。再有効化条件と未決の承認主体は[ADR-0006](docs/decisions/0006-preview-only-deployment-until-production-readiness.md)を参照してください。
 

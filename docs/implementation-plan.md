@@ -23,7 +23,9 @@ Mobile E2Eのログイン遷移と管理画面遷移は、それぞれ1回のret
 
 ## 配置経路の暫定計画
 
-- PR Previewを、branch scopeのsecretと合成データによる継続的な外部配置検証経路とする。
+- アプリケーション、認証・環境変数、DB・migration、build・container、外部adapter等、配置挙動へ影響する変更では、PR Previewをbranch scopeのsecretと合成データによる外部配置検証経路とする。
+- 文書だけの変更は、GitHub Actions、文書限定の差分検査、秘密値検査が成功した場合、Preview配置成功をマージ必須条件としない。
+- Preview用環境変数はPR branch間で自動継承されない。共有Preview scopeまたはbranch別設定の標準手順は、secret配布範囲、fork、rotation、権限、branch削除後の保持を確認してから決定する。
 - main Computeは本番準備の承認まで未構成・未稼働とする。GitHub上に解除対象のrequired checkはなく、Prisma UIではPreviewを維持したmain単位のpause操作を確認できなかったため、外部設定は変更しない。
 - main Computeの現在の失敗は、未承認のproduction設定を推測せず`AUTH_SECRET`不足でfail closedとなった既知状態である。
 - 本番値投入の最終承認主体と承認順序は未決であり、決定前にmainへproduction secretや外部adapter設定を投入しない。
