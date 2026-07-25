@@ -22,6 +22,16 @@ Mobile E2Eのログイン遷移と管理画面遷移は、各1回のretry後に�
 
 この結果は対象SHAにおける実装、migration、PostgreSQL統合、E2E、production buildおよびcontainer buildの技術的成功を示します。外部機関・専門家の見解、運用上の承認、第三者的な安全性評価、商用環境への移行判断は別途必要です。
 
+### 配置経路の暫定方針
+
+PR #14はhead SHA `e0edd87d0703f6b80dac41b6ea67a6e9a47ef9f0` でPreview配置まで成功し、merge commit `34b8ba05acca1a2330d24231df354c62c6c3234a` のmain CI #62も全job成功しました。PR #14は技術実装として完了しています。
+
+本番準備が承認されるまで、配置挙動へ影響する変更ではPrisma ComputeのPR Previewを外部配置検証経路とします。文書だけの変更は、GitHub Actions、文書限定の差分検査、秘密値検査が成功した場合、Preview成功を必須条件としません。Preview用環境変数はPR branch間で自動継承されないため、必要なbranch scope設定を投入したPRだけがPreview配置検証を完了できます。
+
+main Computeは本番配置経路として未構成・未稼働です。mainでの失敗は、未承認のproduction設定を推測せず、`AUTH_SECRET`不足を検知してfail closedになった既知状態です。コード不良の解消を目的としてPreview用secretや暫定adapter設定をmainへコピーしません。
+
+GitHubのmainにはbranch protection/rulesetによるrequired checkが設定されていないため、解除対象のrequired checkはありません。Prisma UIにはPreviewを維持したままmainだけを安全にpauseする操作が確認できなかったため、外部設定は変更せず、main Computeを未構成・未有効化・未配信のまま維持しています。再有効化条件と未決の承認主体は[ADR-0006](docs/decisions/0006-preview-only-deployment-until-production-readiness.md)を参照してください。
+
 未完了事項:
 
 1. 水島警察署生活安全課および岡山県公安委員会による一次見解

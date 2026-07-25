@@ -95,6 +95,14 @@ Mobile E2Eでは、次の2件がそれぞれ1回のretry後に成功した。現
 - ログイン遷移
 - 管理画面遷移
 
+### PR #14のmain統合と配置検証
+
+PR #14はhead SHA `e0edd87d0703f6b80dac41b6ea67a6e9a47ef9f0` のまま通常マージされ、main merge commitは `34b8ba05acca1a2330d24231df354c62c6c3234a` となった。main CI #62では単体60件、PostgreSQL 18.4統合28件、Desktop/Mobile E2E 12件、production buildおよびcontainer buildが成功し、skipは0件だった。Mobileのログイン遷移と管理画面遷移は各1回のretry後に成功した既知のflaky testである。
+
+PR Previewは `https://cms05up7r2iknzmf9xzgppehb.nrt.prisma.build` への配置と画面表示に成功した。main Computeはproduction roleの`AUTH_SECRET`が未設定で、環境検証がfail closedとなった。Prisma Client生成、schema検証、コンパイルおよび型検査は成功しており、失敗した配置は有効化も配信もされていない。
+
+このため、PR #14の技術実装は完了としつつ、mainの本番配置経路は未構成・未稼働として別管理する。本番準備の承認まではPR Previewを配置検証経路とし、main Computeの停止またはmain向け自動デプロイ対象からの除外は外部設定変更の承認後に行う。詳細はADR-0006を参照する。
+
 ## 6. 既知の制約
 
 - 本番KYC adapter、受渡し住所/追跡番号の限定開示、取引メッセージは今回の基盤に含まれない。
@@ -103,6 +111,7 @@ Mobile E2Eでは、次の2件がそれぞれ1回のretry後に成功した。現
 - point通知の送信状態更新は将来workerの責務で、通知予定行自体はpoint台帳ではない。
 - 既存 `admin_verified_*` / `completed_at` は互換用に残す。新規画面・監査は `admin_finalized_*` を運営確認として用いる。
 - Mobile E2Eのログイン遷移と管理画面遷移は各1回retry後に成功しており、既知のflaky testとして追跡する。
+- main Computeは未構成・未稼働であり、本番準備が承認されるまでPR Previewだけを外部配置検証経路とする。外部連携の停止操作は未実施。
 
 ## 7. 技術検証後も残る未完了事項
 

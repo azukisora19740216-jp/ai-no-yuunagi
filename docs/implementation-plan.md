@@ -21,6 +21,16 @@ Mobile E2Eのログイン遷移と管理画面遷移は、それぞれ1回のret
 
 この状態は対象SHAの技術的な動作確認を示す。外部機関・専門家の見解、運用上の承認、第三者的な安全性評価、商用環境への移行判断は別のゲートである。
 
+## 配置経路の暫定計画
+
+- アプリケーション、認証・環境変数、DB・migration、build・container、外部adapter等、配置挙動へ影響する変更では、PR Previewをbranch scopeのsecretと合成データによる外部配置検証経路とする。
+- 文書だけの変更は、GitHub Actions、文書限定の差分検査、秘密値検査が成功した場合、Preview配置成功をマージ必須条件としない。
+- Preview用環境変数はPR branch間で自動継承されない。共有Preview scopeまたはbranch別設定の標準手順は、secret配布範囲、fork、rotation、権限、branch削除後の保持を確認してから決定する。
+- main Computeは本番準備の承認まで未構成・未稼働とする。GitHub上に解除対象のrequired checkはなく、Prisma UIではPreviewを維持したmain単位のpause操作を確認できなかったため、外部設定は変更しない。
+- main Computeの現在の失敗は、未承認のproduction設定を推測せず`AUTH_SECRET`不足でfail closedとなった既知状態である。
+- 本番値投入の最終承認主体と承認順序は未決であり、決定前にmainへproduction secretや外部adapter設定を投入しない。
+- 再有効化はADR-0006のproduction readiness checklistを満たした後に行う。
+
 ## 1. フェーズ
 
 ### Phase 0 — 調査・要件・設計（今回）
@@ -126,6 +136,8 @@ C-102〜C-104およびC-129Aの残高・配分詳細を決定するまでポイ�
 8. 失効通知workerと再送運用
 9. 本番環境のセキュリティ確認
 10. バックアップ、障害対応、利用者対応手順
+11. 本番値投入の最終承認主体と承認順序の決定
+12. production readiness checklistの承認とmain Compute再有効化判断
 
 ## 2. ローカル開発環境
 

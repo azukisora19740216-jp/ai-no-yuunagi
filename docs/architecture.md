@@ -195,6 +195,16 @@ interface ShippingProvider {
 
 実証運用ではpilot mode=true、登録上限50、全国公開=false、招待制=trueを安全側既定値とする。周辺地域の具体範囲と本番開始日時は承認済みDB設定として持ち、欠落時は登録・公開・正式ポイント付与を拒否する。
 
+### 10.1 配置チャネル
+
+本番準備が承認されるまで、配置挙動へ影響する変更では、PR branchのPrisma Compute Previewを外部配置検証チャネルとする。対象はアプリケーション、認証・環境変数、DB・migration、build・containerおよび外部adapter等とする。Previewはbranch scopeのsecret、合成データ、`DEPLOYMENT_ROLE=preview`を使用する。Preview用secret、DB、`disabled` adapter設定をmainへコピーしない。
+
+文書だけの変更は、GitHub Actions、文書限定の差分検査および秘密値検査が成功した場合、Preview配置成功をマージ必須条件としない。Preview用環境変数はPR branch間で自動継承されないため、すべてのPRで自動的にPreviewが成立するとは扱わない。共有Preview scopeまたはbranch別設定手順は、配布範囲、fork、rotation、権限およびbranch削除後の保持を確認してから別途決定する。
+
+main Computeは将来のproduction配置候補として未構成・未稼働のまま分離する。未承認のproduction設定が欠ける場合はビルドまたは起動をfail closedとし、暫定値で成功させない。main向け自動デプロイを一時停止または対象外とする外部設定変更は、required checkと代替検証への影響を確認し、明示承認後に行う。
+
+main Computeの再有効化には、確定ドメイン、production secret、外部メール、Storage、KYC、配送設定、許可ホスト、監視、バックアップ、障害対応および本番開始設定の承認が必要である。承認主体と承認順序は未決のため、決定前はproduction値を投入しない。詳細はADR-0006とする。
+
 ## 11. 保留する技術判断（ADR候補）
 
 1. ADR-001: 認証ライブラリ、セッション永続化、管理者MFA
@@ -205,4 +215,5 @@ interface ShippingProvider {
 6. ADR候補: ポイント配分の予約/消費と期限別消費順
 7. ADR候補: 寄付端数処理と再計算版管理
 8. ADR候補: PIIフィールド暗号化と鍵ローテーション
-9. ADR候補: デプロイ先、バックアップ、RPO/RTO
+9. ADR-0006（採用済み）: 本番準備承認までPR Previewを配置検証経路とし、main Computeを未構成・未稼働とする
+10. ADR候補: 本番デプロイ先、バックアップ、RPO/RTO
