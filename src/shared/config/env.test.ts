@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { parseServerEnv } from "./env";
 
-const validDevelopmentEnv: NodeJS.ProcessEnv = {
+const validLocalEnv: NodeJS.ProcessEnv = {
   NODE_ENV: "development",
+  DEPLOYMENT_ROLE: "local",
   APP_URL: "http://localhost:3000",
+  APP_ALLOWED_HOSTS: "localhost",
   DATABASE_URL: "postgresql://user:password@localhost:5432/test",
   AUTH_SECRET: "test-only-authentication-secret-32-characters",
   LOG_LEVEL: "info",
@@ -19,53 +21,197 @@ const validDevelopmentEnv: NodeJS.ProcessEnv = {
   SHIPPING_DRIVER: "mock",
   STORAGE_DRIVER: "local",
   LOCAL_STORAGE_PATH: ".local-data/uploads",
-  SMTP_HOST: "localhost",
-  SMTP_PORT: "1025",
-  MAIL_FROM: "no-reply@example.invalid",
+};
+
+const validPreviewEnv: NodeJS.ProcessEnv = {
+  ...validLocalEnv,
+  NODE_ENV: "production",
+  DEPLOYMENT_ROLE: "preview",
+  APP_URL: undefined,
+  APP_ALLOWED_HOSTS: undefined,
+  AUTH_SECRET: "preview-authentication-secret-at-least-32-characters",
+  ALLOW_MOCK_ADAPTERS: "false",
+  EMAIL_DRIVER: "disabled",
+  KYC_DRIVER: "disabled",
+  SHIPPING_DRIVER: "disabled",
+  STORAGE_DRIVER: "disabled",
+};
+
+const validProductionEnv: NodeJS.ProcessEnv = {
+  ...validPreviewEnv,
+  DEPLOYMENT_ROLE: "production",
+  APP_URL: "https://service.example.jp",
+  APP_ALLOWED_HOSTS: "service.example.jp",
+  AUTH_SECRET: "production-authentication-secret-at-least-32-characters",
+  EMAIL_DRIVER: "external",
+  KYC_DRIVER: "external",
+  SHIPPING_DRIVER: "external",
+  STORAGE_DRIVER: "s3",
+  SMTP_HOST: "smtp.example.jp",
+  SMTP_PORT: "587",
+  MAIL_FROM: "no-reply@example.jp",
+  S3_ENDPOINT: "https://objects.example.jp",
+  S3_REGION: "ap-northeast-1",
+  S3_BUCKET: "production-bucket",
+  S3_ACCESS_KEY_ID: "production-access-key",
+  S3_SECRET_ACCESS_KEY: "production-secret-key",
 };
 
 describe("parseServerEnv", () => {
-  it("開発環境の安全なモック設定を受け入れる", () => {
-    const parsed = parseServerEnv(validDevelopmentEnv);
+  it("localで明示的に有効化したmockとlocal storageを受け入れる", () => {
+    const parsed = parseServerEnv(validLocalEnv);
+    expect(parsed.DEPLOYMENT_ROLE).toBe("local");
     expect(parsed.ALLOW_MOCK_ADAPTERS).toBe(true);
-    expect(parsed.FEATURE_PILOT_ENROLLMENT).toBe(false);
-    expect(parsed.NATIONWIDE_PUBLIC_ENABLED).toBe(false);
-    expect(parsed.SMTP_PORT).toBe(1025);
+    expect(parsed.EMAIL_DRIVER).toBe("mock");
+    expect(parsed.STORAGE_DRIVER).toBe("local");
   });
 
-  it("実証中の本番全国公開設定を拒否する", () => {
-    expect(() =>
-      parseServerEnv({
-        ...validDevelopmentEnv,
-        NODE_ENV: "production",
-        NATIONWIDE_PUBLIC_ENABLED: "true",
-      }),
-    ).toThrow(/NATIONWIDE_PUBLIC_ENABLED/);
+  it("preview + email disabledで起動設定を受け入れる", () => {
+    const parsed = parseServerEnv(validPreviewEnv);
+    expect(parsed.EMAIL_DRIVER).toBe("disabled");
+    expect(parsed.APP_URL).toBeUndefined();
+    expect(parsed.APP_ALLOWED_HOSTS).toEqual(["*.prisma.build"]);
   });
 
-  it("本番環境のモックとローカル保存を拒否する", () => {
-    expect(() => parseServerEnv({ ...validDevelopmentEnv, NODE_ENV: "production" })).toThrow(
-      /ALLOW_MOCK_ADAPTERS|KYC_DRIVER|STORAGE_DRIVER/,
+  it("preview + storage disabledで起動設定を受け入れる", () => {
+    expect(parseServerEnv(validPreviewEnv).STORAGE_DRIVER).toBe("disabled");
+  });
+
+  it("preview + mock emailを拒否する", () => {
+    expect(() => parseServerEnv({ ...validPreviewEnv, EMAIL_DRIVER: "mock" })).toThrow(
+      /EMAIL_DRIVER/,
     );
   });
 
-  it("S3設定値の不足を拒否し、値自体をエラーへ含めない", () => {
+  it("preview + local storageを拒否する", () => {
+    expect(() => parseServerEnv({ ...validPreviewEnv, STORAGE_DRIVER: "local" })).toThrow(
+      /STORAGE_DRIVER/,
+    );
+  });
+
+  it("production + disabled emailを拒否する", () => {
+    expect(() => parseServerEnv({ ...validProductionEnv, EMAIL_DRIVER: "disabled" })).toThrow(
+      /EMAIL_DRIVER/,
+    );
+  });
+
+  it("production + mock emailを拒否する", () => {
+    expect(() => parseServerEnv({ ...validProductionEnv, EMAIL_DRIVER: "mock" })).toThrow(
+      /EMAIL_DRIVER/,
+    );
+  });
+
+  it("production + disabled storageを拒否する", () => {
+    expect(() => parseServerEnv({ ...validProductionEnv, STORAGE_DRIVER: "disabled" })).toThrow(
+      /STORAGE_DRIVER/,
+    );
+  });
+
+  it("production + local storageを拒否する", () => {
+    expect(() => parseServerEnv({ ...validProductionEnv, STORAGE_DRIVER: "local" })).toThrow(
+      /STORAGE_DRIVER/,
+    );
+  });
+
+  it("production + mock KYCを拒否する", () => {
+    expect(() => parseServerEnv({ ...validProductionEnv, KYC_DRIVER: "mock" })).toThrow(
+      /KYC_DRIVER/,
+    );
+  });
+
+  it("productionの外部adapter設定を受け入れる", () => {
+    expect(parseServerEnv(validProductionEnv).DEPLOYMENT_ROLE).toBe("production");
+  });
+
+  it("external emailでSMTP設定が不足する場合は拒否する", () => {
     expect(() =>
       parseServerEnv({
-        ...validDevelopmentEnv,
-        STORAGE_DRIVER: "s3",
-        S3_ACCESS_KEY_ID: "sensitive-access-key",
+        ...validProductionEnv,
+        SMTP_HOST: undefined,
+        SMTP_PORT: undefined,
+        MAIL_FROM: undefined,
       }),
-    ).toThrow(/S3_ENDPOINT/);
+    ).toThrow(/SMTP_HOST|SMTP_PORT|MAIL_FROM/);
+  });
+
+  it("s3 storageで設定が不足する場合は拒否し、値をエラーへ含めない", () => {
+    const input = {
+      ...validProductionEnv,
+      S3_ENDPOINT: undefined,
+      S3_ACCESS_KEY_ID: "sensitive-access-key",
+    };
+    expect(() => parseServerEnv(input)).toThrow(/S3_ENDPOINT/);
 
     try {
-      parseServerEnv({
-        ...validDevelopmentEnv,
-        STORAGE_DRIVER: "s3",
-        S3_ACCESS_KEY_ID: "sensitive-access-key",
-      });
+      parseServerEnv(input);
     } catch (error) {
       expect(String(error)).not.toContain("sensitive-access-key");
     }
+  });
+
+  it("未許可のAPP_URLを拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validPreviewEnv,
+        APP_URL: "https://other.preview.prisma.build",
+        APP_ALLOWED_HOSTS: "expected.preview.prisma.build",
+      }),
+    ).toThrow(/APP_ALLOWED_HOSTS/);
+  });
+
+  it("Prisma Computeに限定したpreview wildcardを受け入れる", () => {
+    expect(
+      parseServerEnv({
+        ...validPreviewEnv,
+        APP_ALLOWED_HOSTS: "*.prisma.build",
+      }).APP_ALLOWED_HOSTS,
+    ).toEqual(["*.prisma.build"]);
+  });
+
+  it("Prisma Compute以外または無制限のpreview wildcardを拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validPreviewEnv,
+        APP_ALLOWED_HOSTS: "*.example.com",
+      }),
+    ).toThrow(/APP_ALLOWED_HOSTS/);
+  });
+
+  it("productionでAPP_URLが未設定なら拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validProductionEnv,
+        APP_URL: undefined,
+      }),
+    ).toThrow(/APP_URL/);
+  });
+
+  it("productionの未確定APP_URLを拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validProductionEnv,
+        APP_URL: "https://service.invalid",
+        APP_ALLOWED_HOSTS: "service.invalid",
+      }),
+    ).toThrow(/APP_URL/);
+  });
+
+  it("previewとproductionをNODE_ENVだけで判定しない", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validLocalEnv,
+        NODE_ENV: "production",
+        DEPLOYMENT_ROLE: "local",
+      }),
+    ).not.toThrow();
+  });
+
+  it("pilotで全国公開を有効にしたpreview設定を拒否する", () => {
+    expect(() =>
+      parseServerEnv({
+        ...validPreviewEnv,
+        NATIONWIDE_PUBLIC_ENABLED: "true",
+      }),
+    ).toThrow(/NATIONWIDE_PUBLIC_ENABLED/);
   });
 });

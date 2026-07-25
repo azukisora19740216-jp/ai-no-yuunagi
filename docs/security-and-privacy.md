@@ -80,6 +80,8 @@
 - request/correlation ID、ルート識別子、状態コード、処理時間、安全なエラーコードを記録。
 - 氏名、住所、メール、電話、メッセージ本文、追跡番号、ファイル内容、token、cookie、認証headerを記録しない。
 - 例外を構造化し、本番レスポンスへstack/SQL/環境変数を出さない。
+- 配置区分は`DEPLOYMENT_ROLE`で明示する。productionは確定済みHTTPS originの完全一致allowlistを必須とする。Prisma Compute PreviewはBetter Authの動的Base URL検証を使い、HTTPS固定・fallbackなし・`*.prisma.build`だけの境界付きallowlistとする。未検証の受信Hostヘッダー、他ドメイン、より広いワイルドカード、予約済みテストドメインを信頼しない。
+- 無効化されたメール送信・Storageアップロードは、送信済み表示、DBメタデータ作成、ファイル保存より前に設定不足エラーで拒否する。
 
 ### 監査ログ
 

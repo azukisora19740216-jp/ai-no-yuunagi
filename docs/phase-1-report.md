@@ -2,7 +2,9 @@
 
 - 実施日: 2026-07-20
 - 対象Issue: MVP-003, MVP-004, MVP-005, MVP-006の基盤部分
-- 状態: コード基盤完了。Docker/PostgreSQL実行は端末制約によりCI検証待ち。
+- 状態: コード基盤完了。2026-07-25のCI #55でPostgreSQL 18.4統合検証済み。
+
+> 2026-07-25追記: 対象SHA `1a8e19edcb9aa3cf3c6b670a8484db6f8e01fd7f` の [CI #55 / attempt 2](https://github.com/azukisora19740216-jp/ai-no-yuunagi/actions/runs/30035051625) で、全migration、統合テスト27件、E2E 12件、production build、container buildが成功し、skip 0を確認した。以下の件数は2026-07-20時点のPhase 1ローカル検証履歴である。
 
 ## 実装したもの
 
@@ -26,21 +28,21 @@ Phase 1では `health`, `audit`, `outbox` を実装した。今後の `identity`
 
 ## 検証結果
 
-| 検証                        | 結果                                          |
-| --------------------------- | --------------------------------------------- |
-| pnpm供給網lockfile検証      | PASS（659件）                                 |
-| peer dependency検査         | PASS                                          |
-| Prisma Client生成           | PASS                                          |
-| Prisma schema検証           | PASS                                          |
-| Prettier                    | PASS                                          |
-| ESLint                      | PASS、warning 0                               |
-| TypeScript                  | PASS                                          |
-| Unit/component              | PASS、7 files / 13 tests                      |
-| Next.js production build    | PASS                                          |
-| Playwright Chromium         | PASS、2 tests                                 |
-| production dependency audit | PASS、既知脆弱性0                             |
-| PostgreSQL integration      | 未実行。2 testsはDB未指定でskip、CIで実行予定 |
-| Docker Compose実起動        | 未実行。Dockerが端末に存在しない              |
+| 検証                        | 結果                                        |
+| --------------------------- | ------------------------------------------- |
+| pnpm供給網lockfile検証      | PASS（659件）                               |
+| peer dependency検査         | PASS                                        |
+| Prisma Client生成           | PASS                                        |
+| Prisma schema検証           | PASS                                        |
+| Prettier                    | PASS                                        |
+| ESLint                      | PASS、warning 0                             |
+| TypeScript                  | PASS                                        |
+| Unit/component              | PASS、7 files / 13 tests                    |
+| Next.js production build    | PASS                                        |
+| Playwright Chromium         | PASS、2 tests                               |
+| production dependency audit | PASS、既知脆弱性0                           |
+| PostgreSQL integration      | CI #55でPostgreSQL 18.4統合27件成功、skip 0 |
+| Docker Compose実起動        | 未実行。Dockerが端末に存在しない            |
 
 ## セキュリティ判断
 
@@ -62,7 +64,7 @@ Phase 1では `health`, `audit`, `outbox` を実装した。今後の `identity`
 
 ## リスク・保留
 
-- Docker/DB統合を実機でまだ実行していない。最初のCIまたはDocker利用可能端末でmigration triggerを確認する。
+- PostgreSQL統合とmigration triggerはCI #55で確認済み。作業端末でのDocker Compose操作は未実施のため、ローカル手順の再現性は別途保守する。
 - Gitホストが未決のためGitHub Actionsは暫定。実際のbranch protection設定は未実施。
 - 認証ライブラリ、管理者MFA、外部storage/KYC/配送/メール事業者は未選定。
 - 予定される制度資料8点が未着で、業務機能の公開条件は未確定。

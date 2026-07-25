@@ -15,7 +15,9 @@ export default async function AdminPilotPage() {
   const overview = await getPilotAdminOverview();
   const env = getServerEnv();
   const mockKycEnabled =
-    env.NODE_ENV !== "production" && env.ALLOW_MOCK_ADAPTERS && env.KYC_DRIVER === "mock";
+    (env.DEPLOYMENT_ROLE === "local" || env.DEPLOYMENT_ROLE === "test") &&
+    env.ALLOW_MOCK_ADAPTERS &&
+    env.KYC_DRIVER === "mock";
   return (
     <main>
       <h1>実証運用・招待・本人確認</h1>

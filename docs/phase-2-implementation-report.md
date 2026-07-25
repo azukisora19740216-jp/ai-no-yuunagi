@@ -4,6 +4,8 @@
 - 対象: 取引状態管理、おかげさまポイント追記台帳
 - 法的評価: 実施していない
 
+> 2026-07-25追記: 対象SHA `1a8e19edcb9aa3cf3c6b670a8484db6f8e01fd7f` の [CI #55 / attempt 2](https://github.com/azukisora19740216-jp/ai-no-yuunagi/actions/runs/30035051625) で、全migration、PostgreSQL 18.4統合テスト27件、Desktop/Mobile E2E 12件、production build、container buildが成功し、skip 0を確認した。PD-01〜PD-07は実装済み・PostgreSQL統合検証済み。以下のローカル件数は実施日時点の履歴として保持する。
+
 ## 1. 既存設計との整合
 
 `product-requirements.md`、`requirements-conflicts.md`、`architecture.md`、`data-model.md`、`state-machines.md`、`security-and-privacy.md` とフェーズ1実装を確認した。
@@ -70,7 +72,7 @@ C-106、保留解消、共通プール自動移行条件は未決のため、フ
 | E2E（実DBログイン・取引・台帳閲覧） | 4件スキップ                                      |
 | 依存関係監査                        | 既知の脆弱性なし                                 |
 
-DB統合テストには、不正状態遷移、管理確認前の未付与、同時管理確認による二重付与防止、双方報告の競合と再試行、保留残高除外、二重取消し、二重共通プール移行、追記専用トリガーを含めた。CIではPostgreSQLへ全migrationとseedを適用して実行するが、CI実行結果自体は未確認。
+DB統合テストには、不正状態遷移、管理確認前の未付与、同時管理確認による二重付与防止、双方報告の競合と再試行、保留残高除外、二重取消し、二重共通プール移行、追記専用トリガーを含めた。2026-07-25のCI #55では、後続PDを含むPostgreSQL統合テスト27件がskip 0で完走した。
 
 ## 5. 実行した主なコマンド
 
@@ -100,7 +102,7 @@ pnpm test:e2e
 
 ## 7. 既知のリスク
 
-- DB統合・実DB E2E・migration適用はこの端末で未実行。CIまたはDocker環境での成功がマージ条件。
+- DB統合・実DB E2E・migration適用はCI #55で確認済み。Mobile E2Eのログイン遷移と管理画面遷移は各1回retry後に成功しており、クローズドテスト開始前の安定化対象とする。
 - 同時完了報告では競合した片方を安全に拒否し、利用者の再試行で完了させる。自動再試行は未実装。
 - 保留後に承認すると `HELD` と新しい `POSTED` の両記録が残る。これは追記型履歴として意図した動作だが、運用説明が必要。
 - 共通プール移行条件が未決のため、現状はadministratorの手動コマンドだけ。承認分離は未実装。
@@ -126,7 +128,7 @@ pnpm test:e2e
 
 ## 10. 次に着手すべきタスク
 
-1. `PH2-VERIFY-01`: Docker/CIで全migration、DB統合10件、実DB E2E4件を完走する。
+1. `PH2-STABILITY-01`: Mobile E2Eのログイン遷移と管理画面遷移のflaky要因を特定し、クローズドテスト開始前に安定化する。
 2. `PH2-RISK-02`: 取引メッセージ、設定型金銭語句検知、管理確認キューを実装する。
 3. `PH2-DISPUTE-03`: 保留・異議・取消し・反対仕訳・取引停止の一貫した解決フローを設計する。
 4. `PH2-SHIPPING-04`: 配送モックと作業区分の証跡・管理確認を実装する。

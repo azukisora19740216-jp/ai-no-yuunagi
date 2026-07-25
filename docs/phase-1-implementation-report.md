@@ -4,6 +4,8 @@
 - 対象: 認証、会員、物品掲載、受取申込み
 - 法的評価: 実施していない
 
+> 2026-07-25追記: 対象SHA `1a8e19edcb9aa3cf3c6b670a8484db6f8e01fd7f` の [CI #55 / attempt 2](https://github.com/azukisora19740216-jp/ai-no-yuunagi/actions/runs/30035051625) で、全migration、PostgreSQL 18.4統合テスト27件、Desktop/Mobile E2E 12件、production build、container buildが成功し、skip 0を確認した。PD-01〜PD-07は実装済み・PostgreSQL統合検証済み。以下のローカル件数は実施日時点の履歴として保持する。
+
 ## 1. 既存文書との整合確認
 
 実装前に `product-requirements.md`、`architecture.md`、`data-model.md`、`security-and-privacy.md`、`state-machines.md`、`implementation-plan.md`、`requirements-conflicts.md` を再確認した。
@@ -60,7 +62,7 @@
 | E2E（実DBログイン）                      | 2件スキップ（実DBなし）                                 |
 | 依存関係監査                             | 既知の脆弱性なし                                        |
 
-CIではPostgreSQL 18サービスにmigrationを適用し、DB統合4件とseedを使うログインE2E 2件も実行する構成にした。CIそのものの実行結果はまだ取得していない。
+CIではPostgreSQL 18サービスにmigrationを適用し、DB統合とseedを使う主要E2Eを実行する構成にした。2026-07-25のCI #55では、後続フェーズを含む統合テスト27件とE2E 12件がskip 0で完走した。
 
 ## 4. 未実装事項
 
@@ -84,7 +86,7 @@ CIではPostgreSQL 18サービスにmigrationを適用し、DB統合4件とseed�
 - 開発メールDBには有効期限内の確認URLが保存される。開発専用であり、本番起動時は禁止しているが、共有開発DBのアクセス制限が必要。
 - レート制限は認証ライブラリ内蔵の単一プロセス向け構成。複数インスタンス運用前に共有ストアへ移行が必要。
 - 監査ログの外部WORM保管、暗号鍵管理、バックアップ復旧、監視・通知は未構築。
-- DB統合と実DB E2Eはこの端末で未実行。CIまたはDocker利用可能環境での成功確認がリリース条件。
+- DB統合と実DB E2EはCI #55で確認済み。Mobile E2Eのログイン遷移と管理画面遷移は各1回retry後に成功しており、クローズドテスト開始前の安定化対象とする。
 
 ## 6. 人間の判断が必要な事項
 
@@ -98,7 +100,7 @@ CIではPostgreSQL 18サービスにmigrationを適用し、DB統合4件とseed�
 
 ## 7. 次に着手すべきタスク
 
-1. `PH1-VERIFY-01`: Docker/CIでmigration、DB統合4件、実DB E2E 2件を実行し結果を固定する。
+1. `PH1-STABILITY-01`: Mobile E2Eのログイン遷移と管理画面遷移のflaky要因を特定し、クローズドテスト開始前に安定化する。
 2. `PH1-MOD-02`: 受取申込み本文へ設定可能な金銭語句モデレーションと管理確認キューを追加する。
 3. `PH1-RECOVERY-03`: 認証後処理失敗によるロール／プロフィール欠損を検出・修復する整合性ジョブを追加する。
 4. `PH1-POLICY-04`: 正式な禁止品基準受領後、バージョン付きルールと審査画面へ反映する。

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm db:generate && pnpm db:validate && next build",
     "start": "next start",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

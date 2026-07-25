@@ -20,6 +20,8 @@ CMD ["pnpm", "dev", "--hostname", "0.0.0.0"]
 FROM dependencies AS build
 COPY . .
 ENV APP_URL=http://127.0.0.1:3000 \
+    APP_ALLOWED_HOSTS=127.0.0.1 \
+    DEPLOYMENT_ROLE=test \
     DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
     AUTH_SECRET=container-build-authentication-secret-123456 \
     ALLOW_MOCK_ADAPTERS=false \
@@ -39,6 +41,7 @@ RUN pnpm db:generate && pnpm build
 
 FROM node:26.5.0-alpine AS production
 ENV NODE_ENV=production
+ENV DEPLOYMENT_ROLE=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 WORKDIR /app

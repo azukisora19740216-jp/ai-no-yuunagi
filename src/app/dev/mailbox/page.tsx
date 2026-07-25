@@ -8,8 +8,8 @@ export default async function DevMailboxPage({
   searchParams: Promise<{ email?: string }>;
 }) {
   const env = getServerEnv();
-  if (!env.ALLOW_MOCK_ADAPTERS || env.EMAIL_DRIVER !== "mock" || env.NODE_ENV === "production")
-    notFound();
+  const mockRole = env.DEPLOYMENT_ROLE === "local" || env.DEPLOYMENT_ROLE === "test";
+  if (!env.ALLOW_MOCK_ADAPTERS || env.EMAIL_DRIVER !== "mock" || !mockRole) notFound();
   const { email } = await searchParams;
   const messages = email
     ? await getPrisma().mockEmail.findMany({

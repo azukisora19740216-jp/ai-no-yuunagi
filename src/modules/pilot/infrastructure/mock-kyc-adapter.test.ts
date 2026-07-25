@@ -12,7 +12,9 @@ afterEach(() => {
 describe("mock KYC adapter", () => {
   it("returns only a normalized development decision when explicitly enabled", async () => {
     Object.assign(process.env, {
+      DEPLOYMENT_ROLE: "test",
       APP_URL: "http://localhost:3000",
+      APP_ALLOWED_HOSTS: "localhost",
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
       AUTH_SECRET: "test-only-auth-secret-at-least-32-characters",
       SMTP_HOST: "localhost",
@@ -30,7 +32,9 @@ describe("mock KYC adapter", () => {
 
   it("fails closed when the mock is not explicitly enabled", async () => {
     Object.assign(process.env, {
+      DEPLOYMENT_ROLE: "test",
       APP_URL: "http://localhost:3000",
+      APP_ALLOWED_HOSTS: "localhost",
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
       AUTH_SECRET: "test-only-auth-secret-at-least-32-characters",
       SMTP_HOST: "localhost",
@@ -38,6 +42,7 @@ describe("mock KYC adapter", () => {
       MAIL_FROM: "test@example.invalid",
     });
     process.env.ALLOW_MOCK_ADAPTERS = "false";
+    process.env.EMAIL_DRIVER = "disabled";
     process.env.KYC_DRIVER = "disabled";
     resetServerEnvForTests();
     await expect(mockKycAdapter.decide({ status: "PENDING" })).rejects.toMatchObject({
