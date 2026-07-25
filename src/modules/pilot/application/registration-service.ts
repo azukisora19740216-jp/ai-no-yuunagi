@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { z } from "zod";
 import { appendAuditEvent } from "@/modules/audit/infrastructure/append-audit-event";
+import { assertVerificationEmailDeliveryAvailable } from "@/modules/identity/infrastructure/verification-email-sender";
 import { getActivePilotContext } from "@/modules/pilot/application/pilot-policy-service";
 import { hashInvitationCode } from "@/modules/pilot/domain/invitation-code";
 import { getServerEnv } from "@/shared/config/env";
@@ -79,6 +80,8 @@ export async function registerInvitedMember(rawInput: PilotRegistrationInput) {
           );
         }
       }
+
+      assertVerificationEmailDeliveryAvailable(getServerEnv());
 
       const user = await transaction.user.create({
         data: { id: userId, name: input.name, email: input.email, emailVerified: false },

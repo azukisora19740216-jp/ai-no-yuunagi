@@ -129,7 +129,9 @@ CIではPostgreSQLサービスへmigrationを適用し、単体・統合・主�
 - 正式残高の30ポイント超過分と期限到来分は、元行を変更せず利用者負数・共通プール正数・movementを同一トランザクションで追記します。
 - ポイントの購入、換金、売買、会員間送金・譲渡、物品・サービス取得機能はありません。
 - 物品価格、送料額、円換算率を保存するフィールドはありません。
-- 開発用メールモック、ローカルストレージ、KYC／配送モックは本番設定で拒否します。
+- `DEPLOYMENT_ROLE=local|test|preview|production` を明示し、`NODE_ENV` だけでは配置先を判定しません。
+- Previewではメール・Storageを明示的に`disabled`へできますが、呼出時は副作用前にfail closedで拒否します。mockメール、local storage、mock KYC／配送はPreviewとproductionで拒否します。
+- productionでは外部メールadapterとS3互換Storage adapterだけを許可し、確定したHTTPSの`APP_URL`ホストが`APP_ALLOWED_HOSTS`へ完全一致しない設定を拒否します。ワイルドカードは使用できません。
 - 禁止品基準の正式資料が未配置のため、現状のカテゴリーは暫定許可リストです。
 - 安全なファイル検証が未実装のため、物品画像アップロードは無効です。
 

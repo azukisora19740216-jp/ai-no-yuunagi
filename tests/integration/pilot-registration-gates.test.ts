@@ -18,6 +18,7 @@ const originalPolicyEnv = {
   FEATURE_PILOT_ENROLLMENT: process.env.FEATURE_PILOT_ENROLLMENT,
   FEATURE_KYC_GATES: process.env.FEATURE_KYC_GATES,
   ALLOW_MOCK_ADAPTERS: process.env.ALLOW_MOCK_ADAPTERS,
+  EMAIL_DRIVER: process.env.EMAIL_DRIVER,
   KYC_DRIVER: process.env.KYC_DRIVER,
 };
 
@@ -162,6 +163,30 @@ describe.skipIf(!connectionString)("PD-01..03 pilot registration and transaction
       status: "ISSUED",
       usedAt: null,
     });
+  });
+
+  it("disabled email rejects registration before user creation or invitation consumption", async () => {
+    const { code, invitation } = await freshInvitation();
+    const input = registrationInput(code);
+    process.env.EMAIL_DRIVER = "disabled";
+    process.env.ALLOW_MOCK_ADAPTERS = "false";
+    resetServerEnvForTests();
+
+    try {
+      await expect(registerInvitedMember(input)).rejects.toMatchObject({
+        code: "EMAIL_DELIVERY_DISABLED",
+      });
+      expect(await prisma!.user.count({ where: { email: input.email } })).toBe(0);
+      expect(await prisma!.invitation.findUnique({ where: { id: invitation.id } })).toMatchObject({
+        status: "ISSUED",
+        usedAt: null,
+        usedByUserId: null,
+      });
+    } finally {
+      process.env.EMAIL_DRIVER = "mock";
+      process.env.ALLOW_MOCK_ADAPTERS = "true";
+      resetServerEnvForTests();
+    }
   });
 
   it("requires current consent, verified KYC and the configured pilot area for listing", async () => {

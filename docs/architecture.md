@@ -182,14 +182,16 @@ interface ShippingProvider {
 
 ## 10. 環境
 
-| 環境       | データ                 | 外部接続                       |
-| ---------- | ---------------------- | ------------------------------ |
-| local      | 固定の架空seed         | KYC/配送/メール/Storageモック  |
-| test       | テストごとに分離・破棄 | すべてfake                     |
-| staging    | 合成データ             | sandboxのみ、明示設定          |
-| production | 本番データ             | 承認済み事業者、secret manager |
+| `DEPLOYMENT_ROLE` | データ                 | 外部接続                                              |
+| ----------------- | ---------------------- | ----------------------------------------------------- |
+| local             | 固定の架空seed         | 明示有効化したKYC/配送/メール/Storageモック           |
+| test              | テストごとに分離・破棄 | fakeまたはテスト専用adapter                           |
+| preview           | 合成データ             | 無効化またはsandboxのみ。mock/local adapterは拒否     |
+| production        | 本番データ             | 承認済み外部メール・S3互換Storage・secret managerのみ |
 
-本番データをlocal/stagingへコピーしない。環境名だけで安全機能を無効化せず、モックアダプターはproduction起動時にfail closedとする。
+配置区分は`NODE_ENV`から推測せず、`DEPLOYMENT_ROLE=local|test|preview|production`で明示する。PreviewとproductionはHTTPSの確定済み`APP_URL`を完全一致の`APP_ALLOWED_HOSTS`へ登録し、ワイルドカードや予約済みテストドメインを拒否する。PreviewでメールまたはStorageを`disabled`にした場合は起動を許可するが、各操作は永続化より前にfail closedとする。productionでは`disabled`を許可しない。
+
+本番データをlocal/previewへコピーしない。環境名だけで安全機能を無効化せず、モックアダプターはpreview/production起動時にfail closedとする。
 
 実証運用ではpilot mode=true、登録上限50、全国公開=false、招待制=trueを安全側既定値とする。周辺地域の具体範囲と本番開始日時は承認済みDB設定として持ち、欠落時は登録・公開・正式ポイント付与を拒否する。
 

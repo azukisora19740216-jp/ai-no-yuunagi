@@ -61,9 +61,11 @@ const server = spawn(process.execPath, [serverEntry], {
   env: {
     ...process.env,
     NODE_ENV: "production",
+    DEPLOYMENT_ROLE: "test",
     HOSTNAME: "127.0.0.1",
     PORT: "3000",
     APP_URL: process.env.APP_URL ?? "http://127.0.0.1:3000",
+    APP_ALLOWED_HOSTS: "127.0.0.1",
     DATABASE_URL:
       process.env.DATABASE_URL ?? "postgresql://unused:unused@127.0.0.1:5432/unused?schema=public",
     AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-authentication-secret-for-tests-only-12345",

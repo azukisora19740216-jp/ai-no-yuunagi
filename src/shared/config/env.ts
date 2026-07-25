@@ -1,9 +1,47 @@
 import { z } from "zod";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
+const optionalPort = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.coerce.number().int().min(1).max(65_535).optional(),
+);
+
+const optionalEmail = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.email().optional(),
+);
+
+function isNonPublicHostname(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".invalid") ||
+    normalized.endsWith(".test") ||
+    normalized.endsWith(".example")
+  );
+}
+
 const serverEnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    DEPLOYMENT_ROLE: z.enum(["local", "test", "preview", "production"]).default("local"),
     APP_URL: z.url(),
+    APP_ALLOWED_HOSTS: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((host) => host.trim().toLowerCase())
+          .filter(Boolean),
+      ),
     DATABASE_URL: z.string().min(1),
     AUTH_SECRET: z.string().min(32),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
@@ -35,23 +73,147 @@ const serverEnvSchema = z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
-    EMAIL_DRIVER: z.enum(["mock", "external"]).default("mock"),
+    EMAIL_DRIVER: z.enum(["mock", "disabled", "external"]).default("mock"),
     KYC_DRIVER: z.enum(["mock", "disabled", "external"]).default("mock"),
     SHIPPING_DRIVER: z.enum(["mock", "disabled", "external"]).default("mock"),
-    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    STORAGE_DRIVER: z.enum(["local", "disabled", "s3"]).default("local"),
     LOCAL_STORAGE_PATH: z.string().min(1).default(".local-data/uploads"),
-    S3_ENDPOINT: z.string().optional(),
-    S3_REGION: z.string().optional(),
-    S3_BUCKET: z.string().optional(),
-    S3_ACCESS_KEY_ID: z.string().optional(),
-    S3_SECRET_ACCESS_KEY: z.string().optional(),
-    SMTP_HOST: z.string().min(1),
-    SMTP_PORT: z.coerce.number().int().min(1).max(65_535),
-    MAIL_FROM: z.email(),
+    S3_ENDPOINT: optionalNonEmptyString,
+    S3_REGION: optionalNonEmptyString,
+    S3_BUCKET: optionalNonEmptyString,
+    S3_ACCESS_KEY_ID: optionalNonEmptyString,
+    S3_SECRET_ACCESS_KEY: optionalNonEmptyString,
+    SMTP_HOST: optionalNonEmptyString,
+    SMTP_PORT: optionalPort,
+    MAIL_FROM: optionalEmail,
     AUTH_RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).default(60),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(20),
   })
   .superRefine((env, context) => {
+    const appUrl = new URL(env.APP_URL);
+    const isDeployedRole =
+      env.DEPLOYMENT_ROLE === "preview" || env.DEPLOYMENT_ROLE === "production";
+    const isMockRole = env.DEPLOYMENT_ROLE === "local" || env.DEPLOYMENT_ROLE === "test";
+
+    if (
+      appUrl.pathname !== "/" ||
+      appUrl.search !== "" ||
+      appUrl.hash !== "" ||
+      appUrl.username !== "" ||
+      appUrl.password !== ""
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["APP_URL"],
+        message: "APP_URL must be an origin without credentials, path, query, or fragment.",
+      });
+    }
+
+    if (env.APP_ALLOWED_HOSTS.some((host) => host.includes("*") || host.includes("://"))) {
+      context.addIssue({
+        code: "custom",
+        path: ["APP_ALLOWED_HOSTS"],
+        message: "Allowed hosts must be exact hostnames without schemes or wildcards.",
+      });
+    }
+
+    if (isDeployedRole) {
+      if (env.NODE_ENV !== "production") {
+        context.addIssue({
+          code: "custom",
+          path: ["NODE_ENV"],
+          message: "Preview and production roles require the production runtime mode.",
+        });
+      }
+      if (appUrl.protocol !== "https:") {
+        context.addIssue({
+          code: "custom",
+          path: ["APP_URL"],
+          message: "Deployed APP_URL must use HTTPS.",
+        });
+      }
+      if (isNonPublicHostname(appUrl.hostname)) {
+        context.addIssue({
+          code: "custom",
+          path: ["APP_URL"],
+          message: "Deployed APP_URL must be a confirmed public hostname.",
+        });
+      }
+      if (!env.APP_ALLOWED_HOSTS.includes(appUrl.hostname.toLowerCase())) {
+        context.addIssue({
+          code: "custom",
+          path: ["APP_ALLOWED_HOSTS"],
+          message: "APP_URL hostname must be explicitly allowlisted.",
+        });
+      }
+      if (env.ALLOW_MOCK_ADAPTERS) {
+        context.addIssue({
+          code: "custom",
+          path: ["ALLOW_MOCK_ADAPTERS"],
+          message: "Mock adapters are forbidden in deployed roles.",
+        });
+      }
+      for (const key of ["EMAIL_DRIVER", "KYC_DRIVER", "SHIPPING_DRIVER"] as const) {
+        if (env[key] === "mock") {
+          context.addIssue({
+            code: "custom",
+            path: [key],
+            message: "Mock drivers are forbidden in deployed roles.",
+          });
+        }
+      }
+      if (env.STORAGE_DRIVER === "local") {
+        context.addIssue({
+          code: "custom",
+          path: ["STORAGE_DRIVER"],
+          message: "Local storage is forbidden in deployed roles.",
+        });
+      }
+      if (env.NATIONWIDE_PUBLIC_ENABLED) {
+        context.addIssue({
+          code: "custom",
+          path: ["NATIONWIDE_PUBLIC_ENABLED"],
+          message: "Nationwide publication is disabled for the pilot.",
+        });
+      }
+    }
+
+    if (!isMockRole && env.ALLOW_MOCK_ADAPTERS) {
+      context.addIssue({
+        code: "custom",
+        path: ["ALLOW_MOCK_ADAPTERS"],
+        message: "Mock adapters are limited to local and test roles.",
+      });
+    }
+
+    if (env.EMAIL_DRIVER === "mock" && (!isMockRole || !env.ALLOW_MOCK_ADAPTERS)) {
+      context.addIssue({
+        code: "custom",
+        path: ["EMAIL_DRIVER"],
+        message: "Mock email is limited to explicitly enabled local and test roles.",
+      });
+    }
+
+    if (env.STORAGE_DRIVER === "local" && !isMockRole) {
+      context.addIssue({
+        code: "custom",
+        path: ["STORAGE_DRIVER"],
+        message: "Local storage is limited to local and test roles.",
+      });
+    }
+
+    if (env.EMAIL_DRIVER === "external") {
+      for (const key of ["SMTP_HOST", "SMTP_PORT", "MAIL_FROM"] as const) {
+        if (!env[key]) {
+          context.addIssue({
+            code: "custom",
+            path: [key],
+            message: "External email requires this value.",
+          });
+        }
+      }
+    }
+
     if (env.STORAGE_DRIVER === "s3") {
       for (const key of [
         "S3_ENDPOINT",
@@ -70,37 +232,19 @@ const serverEnvSchema = z
       }
     }
 
-    if (env.NODE_ENV === "production") {
-      if (env.NATIONWIDE_PUBLIC_ENABLED) {
-        context.addIssue({
-          code: "custom",
-          path: ["NATIONWIDE_PUBLIC_ENABLED"],
-          message: "Nationwide publication is disabled for the pilot.",
-        });
-      }
-      if (env.ALLOW_MOCK_ADAPTERS) {
-        context.addIssue({
-          code: "custom",
-          path: ["ALLOW_MOCK_ADAPTERS"],
-          message: "Mock adapters are forbidden in production.",
-        });
-      }
-      if (
-        env.EMAIL_DRIVER === "mock" ||
-        env.KYC_DRIVER === "mock" ||
-        env.SHIPPING_DRIVER === "mock"
-      ) {
+    if (env.DEPLOYMENT_ROLE === "production") {
+      if (env.EMAIL_DRIVER !== "external") {
         context.addIssue({
           code: "custom",
           path: ["EMAIL_DRIVER"],
-          message: "Mock drivers are forbidden in production.",
+          message: "Production requires an external email adapter.",
         });
       }
-      if (env.STORAGE_DRIVER === "local") {
+      if (env.STORAGE_DRIVER !== "s3") {
         context.addIssue({
           code: "custom",
           path: ["STORAGE_DRIVER"],
-          message: "Local storage is forbidden in production.",
+          message: "Production requires an S3-compatible storage adapter.",
         });
       }
       if (env.AUTH_SECRET.includes("local") || env.AUTH_SECRET.includes("change-me")) {
