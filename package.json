@@ -28,11 +28,11 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@better-auth/prisma-adapter": "1.6.23",
-    "@prisma/adapter-pg": "7.9.0",
-    "@prisma/client": "7.9.0",
-    "better-auth": "1.6.23",
-    "next": "16.2.11",
+    "@better-auth/prisma-adapter": "1.6.25",
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
+    "better-auth": "1.6.25",
+    "next": "16.2.12",
     "pg": "8.22.0",
     "pino": "10.3.1",
     "react": "19.2.8",
