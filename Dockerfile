@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:26.5.0-alpine AS base
+FROM node:26.5.1-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@11.9.0 --activate
@@ -39,7 +39,7 @@ ENV APP_URL=http://127.0.0.1:3000 \
     MAIL_FROM=no-reply@example.invalid
 RUN pnpm db:generate && pnpm build
 
-FROM node:26.5.0-alpine AS production
+FROM node:26.5.1-alpine AS production
 ENV NODE_ENV=production
 ENV DEPLOYMENT_ROLE=production
 ENV HOSTNAME=0.0.0.0
